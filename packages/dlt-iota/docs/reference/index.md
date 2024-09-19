@@ -1,4 +1,4 @@
-# @gtsc/dlt-iota
+# @twin.org/dlt-iota
 
 ## Classes
 

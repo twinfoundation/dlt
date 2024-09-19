@@ -16,7 +16,7 @@ Class for performing operations on IOTA.
 
 ### DEFAULT\_MNEMONIC\_SECRET\_NAME
 
-> `static` `readonly` **DEFAULT\_MNEMONIC\_SECRET\_NAME**: `string` = `"mnemonic"`
+> `readonly` `static` **DEFAULT\_MNEMONIC\_SECRET\_NAME**: `string` = `"mnemonic"`
 
 Default name for the mnemonic secret.
 
@@ -24,7 +24,7 @@ Default name for the mnemonic secret.
 
 ### DEFAULT\_SEED\_SECRET\_NAME
 
-> `static` `readonly` **DEFAULT\_SEED\_SECRET\_NAME**: `string` = `"seed"`
+> `readonly` `static` **DEFAULT\_SEED\_SECRET\_NAME**: `string` = `"seed"`
 
 Default name for the seed secret.
 
@@ -32,7 +32,7 @@ Default name for the seed secret.
 
 ### DEFAULT\_COIN\_TYPE
 
-> `static` `readonly` **DEFAULT\_COIN\_TYPE**: `number` = `CoinType.IOTA`
+> `readonly` `static` **DEFAULT\_COIN\_TYPE**: `number` = `CoinType.IOTA`
 
 Default coin type.
 
@@ -40,7 +40,7 @@ Default coin type.
 
 ### DEFAULT\_BECH32\_HRP
 
-> `static` `readonly` **DEFAULT\_BECH32\_HRP**: `string` = `"iota"`
+> `readonly` `static` **DEFAULT\_BECH32\_HRP**: `string` = `"iota"`
 
 Default bech32 hrp.
 
@@ -48,7 +48,7 @@ Default bech32 hrp.
 
 ### DEFAULT\_INCLUSION\_TIMEOUT
 
-> `static` `readonly` **DEFAULT\_INCLUSION\_TIMEOUT**: `number` = `60`
+> `readonly` `static` **DEFAULT\_INCLUSION\_TIMEOUT**: `number` = `60`
 
 The default length of time to wait for the inclusion of a transaction in seconds.
 

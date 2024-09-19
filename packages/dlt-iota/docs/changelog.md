@@ -1,5 +1,5 @@
-# @gtsc/dlt-iota - Changelog
+# @twin.org/dlt-iota - Changelog
 
-## v0.0.1
+## v0.0.1-next.3
 
 - Initial Release
