@@ -1,6 +1,6 @@
-# GTSC Distributed Ledger
+# TWIN Distributed Ledger
 
-This mono-repository contains the packages to for use with DLTs in GTSC applications.
+This mono-repository contains the packages to for use with DLTs in TWIN applications.
 
 ## Packages
 
