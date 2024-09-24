@@ -18,5 +18,11 @@
 		"**/wordlists/**"
 	],
 	"words": ["bech", "nameof", "Secp", "Stiftung"],
-	"ignoreRegExpList": ["/from\\s+(['\"]).*\\1/", "/eslint-disable.*/", "/tst1.*/"]
+	"ignoreRegExpList": [
+		"/from\\s+(['\"]).*\\1/",
+		"/eslint-disable.*/",
+		"/^```shell[\\s\\S]*?```$/gm",
+		"/^```json[\\s\\S]*?```$/gm",
+		"/tst1.*/"
+	]
 }
