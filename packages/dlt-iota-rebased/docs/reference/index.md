@@ -6,6 +6,6 @@
 
 ## Interfaces
 
+- [IIotaNftTransactionResponse](interfaces/IIotaNftTransactionResponse.md)
 - [IIotaRebasedConfig](interfaces/IIotaRebasedConfig.md)
 - [IIotaRebasedNftTransactionOptions](interfaces/IIotaRebasedNftTransactionOptions.md)
-- [IIotaNftTransactionResponse](interfaces/IIotaNftTransactionResponse.md)

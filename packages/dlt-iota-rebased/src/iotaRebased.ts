@@ -7,11 +7,9 @@ import { BaseError, Converter, GeneralError, Guards, type IError } from "@twin.o
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
+import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
 import type { IIotaRebasedConfig } from "./models/IIotaRebasedConfig";
-import type {
-	IIotaRebasedNftTransactionOptions,
-	IIotaNftTransactionResponse
-} from "./models/IIotaRebasedNftTransactionOptions";
+import type { IIotaRebasedNftTransactionOptions } from "./models/IIotaRebasedNftTransactionOptions";
 
 /**
  * Class for performing operations on IOTA.

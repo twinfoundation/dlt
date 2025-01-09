@@ -3,3 +3,4 @@
 export * from "./iotaRebased";
 export * from "./models/IIotaRebasedConfig";
 export * from "./models/IIotaRebasedNftTransactionOptions";
+export * from "./models/IIotaNftTransactionResponse";
