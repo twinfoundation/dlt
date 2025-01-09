@@ -39,7 +39,8 @@
 		"prettier": "3.3.3"
 	},
 	"workspaces": [
-		"packages/dlt-iota"
+		"packages/dlt-iota",
+		"packages/dlt-iota-rebased"
 	],
 	"type": "module"
 }

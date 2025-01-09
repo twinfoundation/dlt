@@ -1,4 +1,4 @@
-# Interface: IIotaConfig
+# Interface: IIotaRebasedConfig
 
 Configuration for IOTA.
 
@@ -6,7 +6,7 @@ Configuration for IOTA.
 
 ### clientOptions
 
-> **clientOptions**: `IClientOptions`
+> **clientOptions**: `NetworkOrTransport`
 
 The configuration for the client.
 
@@ -50,32 +50,4 @@ The coin type.
 
 ```ts
 IOTA 4218
-```
-
-***
-
-### bech32Hrp?
-
-> `optional` **bech32Hrp**: `string`
-
-The bech32 human readable part for the addresses.
-
-#### Default
-
-```ts
-iota
-```
-
-***
-
-### inclusionTimeoutSeconds?
-
-> `optional` **inclusionTimeoutSeconds**: `number`
-
-The length of time to wait for the inclusion of a transaction in seconds.
-
-#### Default
-
-```ts
-60
 ```

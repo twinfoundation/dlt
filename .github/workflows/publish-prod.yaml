@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - dlt-iota
+          - dlt-iota-rebased
 
 jobs:
   publish:
