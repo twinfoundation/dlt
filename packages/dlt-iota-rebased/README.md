@@ -1,4 +1,4 @@
-# TWIN DLT IOTA REBASED
+# TWIN DLT IOTA Rebased
 
 DLT helpers for use with IOTA Rebased.
 
