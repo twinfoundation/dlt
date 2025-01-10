@@ -12,7 +12,7 @@ Response from an NFT transaction.
 
 > `optional` **createdObject**: `object`
 
-The created object reference if this was a mint operation.
+The created object reference.
 
 #### objectId
 

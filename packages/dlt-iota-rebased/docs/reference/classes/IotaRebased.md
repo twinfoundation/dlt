@@ -46,7 +46,9 @@ Create a new SUI client.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
@@ -66,7 +68,9 @@ Create configuration using defaults where necessary.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration to populate.
 
@@ -84,27 +88,39 @@ Get addresses for the identity.
 
 #### Parameters
 
-• **seed**: `Uint8Array`
+##### seed
+
+`Uint8Array`
 
 The seed to use for generating addresses.
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
-• **accountIndex**: `number`
+##### accountIndex
+
+`number`
 
 The account index to get the addresses for.
 
-• **startAddressIndex**: `number`
+##### startAddressIndex
+
+`number`
 
 The start index for the addresses.
 
-• **count**: `number`
+##### count
+
+`number`
 
 The number of addresses to generate.
 
-• **isInternal?**: `boolean`
+##### isInternal?
+
+`boolean`
 
 Whether the addresses are internal.
 
@@ -118,49 +134,57 @@ The list of addresses.
 
 ### prepareAndPostTransaction()
 
-> `static` **prepareAndPostTransaction**(`config`, `vaultConnector`, `identity`, `client`, `options`): `Promise`\<`object`\>
+> `static` **prepareAndPostTransaction**(`config`, `vaultConnector`, `identity`, `client`, `options`): `Promise`\<\{ `digest`: `string`; \}\>
 
 Prepare and post a transaction.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
-• **vaultConnector**: `IVaultConnector`
+##### vaultConnector
+
+`IVaultConnector`
 
 The vault connector.
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity of the user to access the vault keys.
 
-• **client**: `IotaClient`
+##### client
+
+`IotaClient`
 
 The client instance.
 
-• **options**
+##### options
 
 The transaction options.
 
-• **options.amount**: `bigint`
+###### amount
+
+`bigint`
 
 The amount to transfer.
 
-• **options.recipient**: `string`
+###### recipient
+
+`string`
 
 The recipient address.
 
 #### Returns
 
-`Promise`\<`object`\>
+`Promise`\<\{ `digest`: `string`; \}\>
 
 The transaction result.
-
-##### digest
-
-> **digest**: `string`
 
 ***
 
@@ -172,23 +196,33 @@ Prepare and post an NFT transaction.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
-• **vaultConnector**: `IVaultConnector`
+##### vaultConnector
+
+`IVaultConnector`
 
 The vault connector.
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity of the user to access the vault keys.
 
-• **client**: `IotaClient`
+##### client
+
+`IotaClient`
 
 The client instance.
 
-• **options**: [`IIotaRebasedNftTransactionOptions`](../interfaces/IIotaRebasedNftTransactionOptions.md)
+##### options
+
+[`IIotaRebasedNftTransactionOptions`](../interfaces/IIotaRebasedNftTransactionOptions.md)
 
 The NFT transaction options.
 
@@ -208,23 +242,33 @@ Prepare and post a storage transaction.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
-• **vaultConnector**: `IVaultConnector`
+##### vaultConnector
+
+`IVaultConnector`
 
 The vault connector.
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity of the user to access the vault keys.
 
-• **client**: `IotaClient`
+##### client
+
+`IotaClient`
 
 The client instance.
 
-• **options**: [`IIotaRebasedNftTransactionOptions`](../interfaces/IIotaRebasedNftTransactionOptions.md)
+##### options
+
+[`IIotaRebasedNftTransactionOptions`](../interfaces/IIotaRebasedNftTransactionOptions.md)
 
 The storage transaction options.
 
@@ -244,15 +288,21 @@ Get the seed from the vault.
 
 #### Parameters
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration to use.
 
-• **vaultConnector**: `IVaultConnector`
+##### vaultConnector
+
+`IVaultConnector`
 
 The vault connector to use.
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity of the user to access the vault keys.
 
@@ -273,7 +323,9 @@ Errors from the Sui SDK are usually not JSON strings but objects.
 
 #### Parameters
 
-• **error**: `unknown`
+##### error
+
+`unknown`
 
 The error to extract.
 
@@ -293,11 +345,15 @@ Get the key for storing the mnemonic.
 
 #### Parameters
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity to use.
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
@@ -317,11 +373,15 @@ Get the key for storing the seed.
 
 #### Parameters
 
-• **identity**: `string`
+##### identity
+
+`string`
 
 The identity to use.
 
-• **config**: [`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+##### config
+
+[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
 
 The configuration.
 
