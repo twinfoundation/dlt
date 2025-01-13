@@ -12,6 +12,14 @@ The configuration for the client.
 
 ***
 
+### network
+
+> **network**: `string`
+
+The network the operations are being performed on.
+
+***
+
 ### vaultMnemonicId?
 
 > `optional` **vaultMnemonicId**: `string`

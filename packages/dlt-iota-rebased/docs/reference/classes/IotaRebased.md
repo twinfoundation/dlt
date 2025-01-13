@@ -390,3 +390,31 @@ The configuration.
 `string`
 
 The seed key.
+
+***
+
+### packageExistsOnNetwork()
+
+> `static` **packageExistsOnNetwork**(`client`, `packageId`): `Promise`\<`boolean`\>
+
+Check if the package exists on the network.
+
+#### Parameters
+
+##### client
+
+`IotaClient`
+
+The client to use.
+
+##### packageId
+
+`string`
+
+The package ID to check.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+True if the package exists, false otherwise.

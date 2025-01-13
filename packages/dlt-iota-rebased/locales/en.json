@@ -1,7 +1,9 @@
 {
 	"error": {
 		"iotaRebased": {
-			"insufficientFunds": "There were insufficient funds to complete the operation"
+			"insufficientFunds": "There were insufficient funds to complete the operation",
+			"packageNotFoundOnNetwork": "The package \"{packageId}\" was not found on the network",
+			"packageObjectError": "Failed to fetch the package object \"{packageId}\""
 		}
 	}
 }

@@ -12,6 +12,11 @@ export interface IIotaRebasedConfig {
 	clientOptions: IotaClientOptions;
 
 	/**
+	 * The network the operations are being performed on.
+	 */
+	network: string;
+
+	/**
 	 * The id of the entry in the vault containing the mnemonic.
 	 * @default mnemonic
 	 */

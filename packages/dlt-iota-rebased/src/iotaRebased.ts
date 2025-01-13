@@ -361,4 +361,41 @@ export class IotaRebased {
 	public static buildSeedKey(identity: string, config: IIotaRebasedConfig): string {
 		return `${identity}/${config.vaultSeedId ?? IotaRebased.DEFAULT_SEED_SECRET_NAME}`;
 	}
+
+	/**
+	 * Check if the package exists on the network.
+	 * @param client The client to use.
+	 * @param packageId The package ID to check.
+	 * @returns True if the package exists, false otherwise.
+	 */
+	public static async packageExistsOnNetwork(
+		client: IotaClient,
+		packageId: string
+	): Promise<boolean> {
+		try {
+			const packageObject = await client.getObject({
+				id: packageId,
+				options: {
+					showType: true
+				}
+			});
+
+			if ("error" in packageObject) {
+				if (packageObject?.error?.code === "notExists") {
+					return false;
+				}
+				throw new GeneralError(IotaRebased._CLASS_NAME, "packageObjectError", {
+					packageId,
+					error: packageObject.error
+				});
+			}
+
+			return true;
+		} catch (error) {
+			throw new GeneralError(IotaRebased._CLASS_NAME, "packageNotFoundOnNetwork", {
+				packageId,
+				error: IotaRebased.extractPayloadError(error)
+			});
+		}
+	}
 }
