@@ -1,6 +1,6 @@
 {
 	"name": "@twin.org/dlt",
-	"version": "0.0.1-next.8",
+	"version": "0.0.1-next.9",
 	"description": "Distributed Ledger",
 	"repository": {
 		"type": "git",
@@ -42,14 +42,5 @@
 		"packages/dlt-iota",
 		"packages/dlt-iota-rebased"
 	],
-	"type": "module",
-	"overrides": {
-		"@noble/ciphers": "1.0.0",
-		"@noble/curves": "1.6.0",
-		"@noble/hashes": "1.5.0",
-		"@scure/base": "1.1.9",
-		"@scure/bip32": "1.5.0",
-		"@scure/bip39": "1.4.0",
-		"micro-key-producer": "0.7.1"
-	}
+	"type": "module"
 }
