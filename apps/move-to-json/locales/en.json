@@ -5,7 +5,8 @@
 				"failedReadingOutputJson": "Failed to read output JSON file: {file}",
 				"contractProcessingFailed": "Failed to process contract: {file}",
 				"mkdirFailed": "Failed to create output directory: {dir}",
-				"buildFailed": "Build failed on platform {platform} for file {file}"
+				"buildFailed": "Build failed on platform {platform} for file {file}",
+				"sdkNotInstalled": "The {platform} SDK is not installed. Please install it first."
 			}
 		}
 	},

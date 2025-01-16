@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import fs from "node:fs";
+import fs, { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { Converter, GeneralError, I18n, StringHelper } from "@twin.org/core";
@@ -46,6 +46,9 @@ export async function actionCommandMoveToJson(
 	opts: { platform?: string }
 ): Promise<void> {
 	try {
+		// Verify the SDK before we do anything else
+		await verifyPlatformSDK(opts.platform ?? "iota");
+
 		CLIDisplay.section(I18n.formatMessage("commands.move-to-json.section.start"));
 
 		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.inputGlob"), inputGlob);
@@ -75,15 +78,23 @@ export async function actionCommandMoveToJson(
 		CLIDisplay.break();
 
 		let finalJson: ICompiledModules = {};
-		if (fs.existsSync(outputJson)) {
-			try {
-				const existingData = fs.readFileSync(outputJson, "utf8");
-				finalJson = JSON.parse(existingData);
+
+		try {
+			const existingData = await fsPromises.readFile(outputJson, "utf8");
+			finalJson = JSON.parse(existingData);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.move-to-json.labels.mergingWithExistingJson"),
+				outputJson
+			);
+		} catch (err) {
+			// If the file doesn't exist (ENOENT), we create a new JSON
+			if (err instanceof Error && "code" in err && err.code === "ENOENT") {
 				CLIDisplay.value(
-					I18n.formatMessage("commands.move-to-json.labels.mergingWithExistingJson"),
-					outputJson
+					I18n.formatMessage("commands.move-to-json.labels.noExistingJsonFound"),
+					I18n.formatMessage("commands.move-to-json.labels.creatingNewJson"),
+					1
 				);
-			} catch (err) {
+			} else {
 				throw new GeneralError(
 					"commands",
 					"commands.move-to-json.failedReadingOutputJson",
@@ -91,13 +102,8 @@ export async function actionCommandMoveToJson(
 					err
 				);
 			}
-		} else {
-			CLIDisplay.value(
-				I18n.formatMessage("commands.move-to-json.labels.noExistingJsonFound"),
-				I18n.formatMessage("commands.move-to-json.labels.creatingNewJson"),
-				1
-			);
 		}
+
 		CLIDisplay.break();
 
 		for (const moveFile of matchedFiles) {
@@ -125,7 +131,7 @@ export async function actionCommandMoveToJson(
 
 		// Ensure the output directory exists
 		try {
-			await fs.promises.mkdir(path.dirname(outputJson), { recursive: true });
+			await fsPromises.mkdir(path.dirname(outputJson), { recursive: true });
 		} catch (err) {
 			throw new GeneralError(
 				"commands",
@@ -217,9 +223,9 @@ async function processMoveFile(
 		return null;
 	}
 
-	// Get the module files
-	const moduleFiles = fs.readdirSync(bytecodeModulesPath).filter(file => file.endsWith(".mv"));
-	if (moduleFiles.length === 0) {
+	const moduleFiles = await fsPromises.readdir(bytecodeModulesPath);
+	const mvFiles = moduleFiles.filter(f => f.endsWith(".mv"));
+	if (mvFiles.length === 0) {
 		CLIDisplay.value(
 			I18n.formatMessage("commands.move-to-json.warnings.noMvFilesFound", {
 				contract: contractName
@@ -233,9 +239,9 @@ async function processMoveFile(
 	const modulesBytesForHash: Buffer[] = [];
 	const modulesBase64: string[] = [];
 
-	for (const file of moduleFiles) {
+	for (const file of mvFiles) {
 		const modulePath = path.join(bytecodeModulesPath, file);
-		const moduleBytes = fs.readFileSync(modulePath);
+		const moduleBytes = await fsPromises.readFile(modulePath);
 
 		modulesBytesForHash.push(moduleBytes);
 		modulesBase64.push(Converter.bytesToBase64(moduleBytes));
@@ -243,7 +249,7 @@ async function processMoveFile(
 
 	const concatenated = Buffer.concat(modulesBytesForHash);
 	const computedPackageIdBytes = Sha3.sum256(concatenated);
-	const computedPackageId = `0x${Converter.bytesToHex(computedPackageIdBytes)}`;
+	const computedPackageId = `${Converter.bytesToHex(computedPackageIdBytes, true)}`;
 
 	CLIDisplay.value(
 		I18n.formatMessage("commands.move-to-json.labels.computedPackageId"),
@@ -268,4 +274,18 @@ async function processMoveFile(
  */
 function getProjectRoot(moveFilePath: string): string {
 	return path.resolve(path.parse(moveFilePath).dir, "..");
+}
+
+/**
+ * Verify the required platform SDK is installed.
+ * @param platform The platform to verify.
+ * @internal
+ */
+async function verifyPlatformSDK(platform: string): Promise<void> {
+	try {
+		const cliApp = platform === "sui" ? "sui" : "iota";
+		await CLIUtils.runShellCmd(cliApp, ["--version"], process.cwd());
+	} catch (err) {
+		throw new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform }, err);
+	}
 }

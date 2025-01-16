@@ -3,7 +3,8 @@
 import { existsSync } from "node:fs";
 import { mkdir, rm, readFile } from "node:fs/promises";
 import path from "node:path";
-import { CLIDisplay } from "@twin.org/cli-core";
+import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
+import { GeneralError, I18n } from "@twin.org/core";
 import { CLI } from "../src/cli";
 import { copyFixtures } from "./utils/copyFixtures";
 
@@ -41,6 +42,36 @@ describe("move-to-json CLI", () => {
 		CLIDisplay.writeError = (buffer: string | Uint8Array): void => {
 			errorBuffer.push(...buffer.toString().split("\n"));
 		};
+	});
+
+	test("Fails gracefully when platform SDK is not installed", async () => {
+		vi.spyOn(CLIUtils, "runShellCmd").mockRejectedValueOnce(
+			new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform: "iota" })
+		);
+
+		const cli = new CLI();
+		const exitCode = await cli.run(
+			[
+				"node",
+				"move-to-json",
+				path.join(TEST_INPUT_GLOB, "iota", "sources", "*.move"),
+				TEST_OUTPUT_JSON,
+				"--platform=iota"
+			],
+			"./dist/locales",
+			{ overrideOutputWidth: 1000 }
+		);
+
+		expect(exitCode).toBe(0);
+
+		const errOutput = errorBuffer.join("\n");
+		expect(errOutput).toContain(
+			I18n.formatMessage("error.commands.move-to-json.sdkNotInstalled", {
+				platform: "iota"
+			})
+		);
+
+		vi.restoreAllMocks();
 	});
 
 	test("Fails with no command line arguments", async () => {
