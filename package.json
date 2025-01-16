@@ -40,7 +40,8 @@
 	},
 	"workspaces": [
 		"packages/dlt-iota",
-		"packages/dlt-iota-rebased"
+		"packages/dlt-iota-rebased",
+		"apps/move-to-json"
 	],
 	"type": "module",
 	"overrides": {

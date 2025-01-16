@@ -31,6 +31,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download IOTA CLI
+        run: |
+          wget https://github.com/iotaledger/iota/releases/download/v0.8.1-beta/iota-v0.8.1-beta-linux-x86_64.tgz -O iota-cli.tgz
+          tar xzf iota-cli.tgz
+          chmod +x iota
+          sudo mv iota /usr/local/bin/iota
+          iota --version
+
+      - name: Download SUI CLI
+        run: |
+          wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.40.3/sui-testnet-v1.40.3-ubuntu-x86_64.tgz -O sui-cli.tgz
+          tar xzf sui-cli.tgz
+          chmod +x sui
+          sudo mv sui /usr/local/bin/sui
+          sui --version
+
       - name: Run Lint and Dist
         run: |
           npm run lint

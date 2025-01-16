@@ -1,0 +1,58 @@
+{
+	"error": {
+		"commands": {
+			"move-to-json": {
+				"failedReadingOutputJson": "Failed to read output JSON file: {file}",
+				"contractProcessingFailed": "Failed to process contract: {file}",
+				"mkdirFailed": "Failed to create output directory: {dir}",
+				"buildFailed": "Build failed on platform {platform} for file {file}"
+			}
+		}
+	},
+	"commands": {
+		"move-to-json": {
+			"options": {
+				"inputGlob": {
+					"param": "'<'inputGlob'>'",
+					"description": "The directory (or glob) containing Move contracts."
+				},
+				"outputJson": {
+					"param": "'<'outputJson'>'",
+					"description": "The JSON file that will contain compiled modules."
+				},
+				"platform": {
+					"description": "Which toolchain to use, e.g. IOTA or SUI"
+				}
+			},
+			"warnings": {
+				"noMvFilesFound": "No .mv files found for the provided path: {inputGlob}"
+			},
+			"progress": {
+				"searchingFiles": "Searching for .move files...",
+				"processingMoveFile": "Processing file.",
+				"writingJsonFile": "Writing compiled modules JSON..."
+			},
+			"section": {
+				"start": "Starting Move to JSON"
+			},
+			"labels": {
+				"inputGlob": "Input Glob",
+				"outputJson": "Output JSON",
+				"platform": "Platform",
+				"matchedFilesCount": "Matched Files Count",
+				"mergingWithExistingJson": "Merging with existing JSON",
+				"noMoveFilesFound": "No .move files found for the provided path: {inputGlob}",
+				"noExistingJsonFound": "No existing JSON found",
+				"creatingNewJson": "Creating new JSON",
+				"contractName": "Contract Name",
+				"compileCmd": "Compile Command",
+				"workingDir": "Working Directory",
+				"compileOutput": "Compile Output",
+				"compileResult": "Compile Result",
+				"noBytecodeModulesFolderFound": "No bytecode_modules folder found for input file: {contractName}",
+				"noMvFilesFound": "No .mv files found for contract: {contractName}",
+				"computedPackageId": "Computed Package ID"
+			}
+		}
+	}
+}
