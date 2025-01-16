@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import fs, { promises as fsPromises } from "node:fs";
+import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { Converter, GeneralError, I18n, StringHelper } from "@twin.org/core";
@@ -212,12 +212,14 @@ async function processMoveFile(
 	// Get the bytecode modules
 	const buildFolderName = StringHelper.snakeCase(baseName);
 	const bytecodeModulesPath = path.join(projectRoot, "build", buildFolderName, "bytecode_modules");
-	if (!fs.existsSync(bytecodeModulesPath)) {
+
+	try {
+		await fsPromises.access(bytecodeModulesPath);
+	} catch {
 		CLIDisplay.value(
-			"commands.move-to-json.warnings.noBytecodeModulesFolderFound",
-			{
+			I18n.formatMessage("commands.move-to-json.warnings.noBytecodeModulesFolderFound", {
 				contract: contractName
-			},
+			}),
 			2
 		);
 		return null;
