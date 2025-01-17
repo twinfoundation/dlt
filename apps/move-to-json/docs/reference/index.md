@@ -8,6 +8,14 @@
 
 - [ICompiledModules](interfaces/ICompiledModules.md)
 
+## Type Aliases
+
+- [PlatformTypes](type-aliases/PlatformTypes.md)
+
+## Variables
+
+- [PlatformTypes](variables/PlatformTypes.md)
+
 ## Functions
 
 - [buildCommandMoveToJson](functions/buildCommandMoveToJson.md)

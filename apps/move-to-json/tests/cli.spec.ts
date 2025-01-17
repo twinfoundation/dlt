@@ -45,7 +45,7 @@ describe("move-to-json CLI", () => {
 	});
 
 	test("Fails gracefully when platform SDK is not installed", async () => {
-		vi.spyOn(CLIUtils, "runShellCmd").mockRejectedValueOnce(
+		vi.spyOn(CLIUtils, "runShellApp").mockRejectedValueOnce(
 			new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform: "iota" })
 		);
 
@@ -122,7 +122,6 @@ describe("move-to-json CLI", () => {
 		);
 
 		expect(exitCode).toBe(0);
-
 		const compiledFileExists = existsSync(TEST_OUTPUT_JSON);
 		expect(compiledFileExists).toBe(true);
 

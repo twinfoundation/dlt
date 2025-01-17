@@ -3,3 +3,4 @@
 export * from "./cli";
 export * from "./commands/moveToJson";
 export * from "./models/ICompiledModules";
+export * from "./models/platformTypes";

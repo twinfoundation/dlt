@@ -22,11 +22,12 @@
 					"description": "The JSON file that will contain compiled modules."
 				},
 				"platform": {
-					"description": "Which toolchain to use, e.g. IOTA or SUI"
+					"param": "--platform '<'platform'>'",
+					"description": "Which toolchain to use"
 				}
 			},
 			"warnings": {
-				"noMvFilesFound": "No .mv files found for the provided path: {inputGlob}"
+				"noMoveFilesFound": "No .move files found for the provided path: {inputGlob}"
 			},
 			"progress": {
 				"searchingFiles": "Searching for .move files...",

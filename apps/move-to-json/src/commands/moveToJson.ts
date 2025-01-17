@@ -5,9 +5,10 @@ import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { Converter, GeneralError, I18n, StringHelper } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
-import type { Command } from "commander";
-import globby from "globby";
+import { Option, type Command } from "commander";
+import FastGlob from "fast-glob";
 import type { ICompiledModules } from "../models/ICompiledModules";
+import { PlatformTypes } from "../models/platformTypes";
 
 /**
  * Build the root command to be consumed by the CLI.
@@ -23,10 +24,13 @@ export function buildCommandMoveToJson(program: Command): void {
 			I18n.formatMessage("commands.move-to-json.options.outputJson.param"),
 			I18n.formatMessage("commands.move-to-json.options.outputJson.description")
 		)
-		.option(
-			"--platform <platform>",
-			I18n.formatMessage("commands.move-to-json.options.platform.description"),
-			"iota"
+		.addOption(
+			new Option(
+				I18n.formatMessage("commands.move-to-json.options.platform.param"),
+				I18n.formatMessage("commands.move-to-json.options.platform.description")
+			)
+				.choices(Object.values(PlatformTypes))
+				.default(PlatformTypes.Iota)
 		)
 		.action(async (inputGlob, outputJson, opts) => {
 			await actionCommandMoveToJson(inputGlob, outputJson, opts);
@@ -38,16 +42,16 @@ export function buildCommandMoveToJson(program: Command): void {
  * @param inputGlob A glob pattern that matches one or more Move files
  * @param outputJson Where we store the final compiled modules.
  * @param opts Additional options, e.g. platform.
- * @param opts.platform The platform (e.g. 'iota' or 'sui').
+ * @param opts.platform The platform type.
  */
 export async function actionCommandMoveToJson(
 	inputGlob: string,
 	outputJson: string,
-	opts: { platform?: string }
+	opts: { platform?: PlatformTypes }
 ): Promise<void> {
 	try {
 		// Verify the SDK before we do anything else
-		await verifyPlatformSDK(opts.platform ?? "iota");
+		await verifyPlatformSDK(opts.platform ?? PlatformTypes.Iota);
 
 		CLIDisplay.section(I18n.formatMessage("commands.move-to-json.section.start"));
 
@@ -55,13 +59,13 @@ export async function actionCommandMoveToJson(
 		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.outputJson"), outputJson);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.move-to-json.labels.platform"),
-			opts.platform ?? "iota"
+			opts.platform ?? PlatformTypes.Iota
 		);
 		CLIDisplay.break();
 
 		// Find matching .move files
 		CLIDisplay.task(I18n.formatMessage("commands.move-to-json.progress.searchingFiles"));
-		const matchedFiles = await globby(inputGlob);
+		const matchedFiles = await FastGlob(inputGlob.replace(/\\/g, "/"));
 
 		if (matchedFiles.length === 0) {
 			CLIDisplay.value(
@@ -111,7 +115,7 @@ export async function actionCommandMoveToJson(
 				moveFile
 			);
 			try {
-				const compiled = await processMoveFile(moveFile, opts.platform ?? "iota");
+				const compiled = await processMoveFile(moveFile, opts.platform ?? PlatformTypes.Iota);
 				if (compiled) {
 					// Merge into finalJson
 					const { contractName, packageId, packageData } = compiled;
@@ -155,19 +159,20 @@ export async function actionCommandMoveToJson(
 /**
  * Process a single Move file by compiling it, computing the packageId, and base64-encoding the .mv modules.
  * @param moveFile The path to a single Move source file.
- * @param platform The platform (e.g. 'iota' or 'sui').
+ * @param platform The platform type
  * @returns The compiled results or null if no modules found.
  */
 async function processMoveFile(
 	moveFile: string,
-	platform: string
+	platform: PlatformTypes
 ): Promise<{
 	contractName: string;
 	packageId: string;
 	packageData: string | string[];
 } | null> {
 	// The contract name is based on the .move file's base name in kebab-case
-	const { name: baseName, dir: parentDir } = path.parse(moveFile);
+	const { name: baseName, dir } = path.parse(moveFile);
+	const parentDir = path.resolve(dir, "../");
 	const contractName = StringHelper.kebabCase(baseName);
 
 	// Find the "project root" (the directory containing Move.toml).
@@ -182,7 +187,7 @@ async function processMoveFile(
 
 	// Compile the contract
 	try {
-		const cliApp = platform === "sui" ? "sui" : "iota";
+		const cliApp = platform === PlatformTypes.Iota ? "iota" : "sui";
 		const cliArgs = ["move", "build"];
 
 		CLIDisplay.value(
@@ -191,9 +196,8 @@ async function processMoveFile(
 			1
 		);
 		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.workingDir"), parentDir, 1);
-		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.workingDir"), parentDir, 1);
 
-		await CLIUtils.runShellCmd(cliApp, cliArgs, parentDir);
+		await CLIUtils.runShellApp(cliApp, cliArgs, parentDir);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.move-to-json.labels.compileResult"),
 			"Build completed",
@@ -284,8 +288,8 @@ function getProjectRoot(moveFilePath: string): string {
  */
 async function verifyPlatformSDK(platform: string): Promise<void> {
 	try {
-		const cliApp = platform === "sui" ? "sui" : "iota";
-		await CLIUtils.runShellCmd(cliApp, ["--version"], process.cwd());
+		const cliApp = platform === PlatformTypes.Iota ? "iota" : "sui";
+		await CLIUtils.runShellApp(cliApp, ["--version"], process.cwd());
 	} catch (err) {
 		throw new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform }, err);
 	}

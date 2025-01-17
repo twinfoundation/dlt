@@ -24,9 +24,9 @@ Additional options, e.g. platform.
 
 #### platform
 
-`string`
+[`PlatformTypes`](../type-aliases/PlatformTypes.md)
 
-The platform (e.g. 'iota' or 'sui').
+The platform type.
 
 ## Returns
 
