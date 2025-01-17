@@ -79,22 +79,15 @@ export async function actionCommandMoveToJson(
 
 		let finalJson: ICompiledModules = {};
 
-		try {
-			const existingData = await fsPromises.readFile(outputJson, "utf8");
-			finalJson = JSON.parse(existingData);
-			CLIDisplay.value(
-				I18n.formatMessage("commands.move-to-json.labels.mergingWithExistingJson"),
-				outputJson
-			);
-		} catch (err) {
-			// If the file doesn't exist (ENOENT), we create a new JSON
-			if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+		if (await CLIUtils.fileExists(outputJson)) {
+			try {
+				const existingData = await fsPromises.readFile(outputJson, "utf8");
+				finalJson = JSON.parse(existingData);
 				CLIDisplay.value(
-					I18n.formatMessage("commands.move-to-json.labels.noExistingJsonFound"),
-					I18n.formatMessage("commands.move-to-json.labels.creatingNewJson"),
-					1
+					I18n.formatMessage("commands.move-to-json.labels.mergingWithExistingJson"),
+					outputJson
 				);
-			} else {
+			} catch (err) {
 				throw new GeneralError(
 					"commands",
 					"commands.move-to-json.failedReadingOutputJson",
@@ -102,6 +95,12 @@ export async function actionCommandMoveToJson(
 					err
 				);
 			}
+		} else {
+			CLIDisplay.value(
+				I18n.formatMessage("commands.move-to-json.labels.noExistingJsonFound"),
+				I18n.formatMessage("commands.move-to-json.labels.creatingNewJson"),
+				1
+			);
 		}
 
 		CLIDisplay.break();
