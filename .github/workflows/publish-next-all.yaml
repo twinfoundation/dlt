@@ -47,6 +47,7 @@ jobs:
 
       - name: Download IOTA CLI
         run: |
+          cd ..
           wget https://github.com/iotaledger/iota/releases/download/v0.8.1-beta/iota-v0.8.1-beta-linux-x86_64.tgz -O iota-cli.tgz
           tar xzf iota-cli.tgz
           chmod +x iota
@@ -55,6 +56,7 @@ jobs:
 
       - name: Download SUI CLI
         run: |
+          cd ..
           wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.40.3/sui-testnet-v1.40.3-ubuntu-x86_64.tgz -O sui-cli.tgz
           tar xzf sui-cli.tgz
           chmod +x sui
