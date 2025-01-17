@@ -1,6 +1,6 @@
 {
 	"name": "@twin.org/dlt",
-	"version": "0.0.1-next.10",
+	"version": "0.0.1-next.11",
 	"description": "Distributed Ledger",
 	"repository": {
 		"type": "git",
@@ -40,7 +40,8 @@
 	},
 	"workspaces": [
 		"packages/dlt-iota",
-		"packages/dlt-iota-rebased"
+		"packages/dlt-iota-rebased",
+		"apps/move-to-json"
 	],
 	"type": "module"
 }

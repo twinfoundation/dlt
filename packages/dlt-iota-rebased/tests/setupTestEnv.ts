@@ -3,6 +3,7 @@
 import path from "node:path";
 import { Guards } from "@twin.org/core";
 import dotenv from "dotenv";
+import { IotaRebased } from "../src/iotaRebased";
 
 console.debug("Setting up test environment from .env and .env.dev files");
 
@@ -15,5 +16,5 @@ export const TEST_CLIENT_OPTIONS = {
 	url: process.env.TEST_NODE_ENDPOINT ?? ""
 };
 
-export const TEST_COIN_TYPE = 4218;
+export const TEST_COIN_TYPE = IotaRebased.DEFAULT_COIN_TYPE;
 export const TEST_NETWORK = process.env.TEST_NETWORK;
