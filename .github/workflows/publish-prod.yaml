@@ -8,9 +8,9 @@ on:
         required: true
         type: choice
         options:
-          - dlt-iota
-          - dlt-iota-rebased
-          - move-to-json
+          - 'packages/dlt-iota'
+          - 'packages/dlt-iota-rebased'
+          - 'apps/move-to-json'
 
 jobs:
   publish:
@@ -40,7 +40,7 @@ jobs:
 
       - name: Check package version does not contain -next
         run: |
-          cd packages/${{ github.event.inputs.package }}
+          cd ${{ github.event.inputs.package }}
           PACKAGE_VERSION=$(cat package.json | jq '.version' | tr -d '"')
           echo Package Version $PACKAGE_VERSION
           if [[ $PACKAGE_VERSION == *"-next"* ]]; then
@@ -68,19 +68,19 @@ jobs:
 
       - name: Run Dist
         run: |
-          cd packages/${{ github.event.inputs.package }}
+          cd ${{ github.event.inputs.package }}
           npm install
           npm run dist
 
       - name: Cleanup package properties
         run: |
-          cd packages/${{ github.event.inputs.package }}
+          cd ${{ github.event.inputs.package }}
           npm pkg delete scripts
           npm pkg delete devDependencies
 
       - name: Publish
         run: |
-          cd packages/${{ github.event.inputs.package }}
+          cd ${{ github.event.inputs.package }}
           npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
