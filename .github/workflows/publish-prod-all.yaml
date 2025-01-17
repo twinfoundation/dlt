@@ -16,7 +16,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        package: [dlt-iota, dlt-iota-rebased]
+        package: [dlt-iota, dlt-iota-rebased, move-to-json]
 
     steps:
       - name: Checkout

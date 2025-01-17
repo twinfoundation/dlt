@@ -10,6 +10,7 @@ on:
         options:
           - dlt-iota
           - dlt-iota-rebased
+          - move-to-json
 
 jobs:
   publish:
