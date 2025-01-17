@@ -37,7 +37,7 @@ export class IotaRebased {
 	private static readonly _CLASS_NAME: string = nameof<IotaRebased>();
 
 	/**
-	 * Create a new SUI client.
+	 * Create a new IOTA Rebased client.
 	 * @param config The configuration.
 	 * @returns The client instance.
 	 */
@@ -72,7 +72,7 @@ export class IotaRebased {
 	/**
 	 * Get addresses for the identity.
 	 * @param seed The seed to use for generating addresses.
-	 * @param config The configuration.
+	 * @param coinType The coin type to use.
 	 * @param accountIndex The account index to get the addresses for.
 	 * @param startAddressIndex The start index for the addresses.
 	 * @param count The number of addresses to generate.
@@ -81,13 +81,13 @@ export class IotaRebased {
 	 */
 	public static getAddresses(
 		seed: Uint8Array,
-		config: IIotaRebasedConfig,
+		coinType: number,
 		accountIndex: number,
 		startAddressIndex: number,
 		count: number,
 		isInternal?: boolean
 	): string[] {
-		Guards.object(IotaRebased._CLASS_NAME, nameof(config), config);
+		Guards.integer(IotaRebased._CLASS_NAME, nameof(coinType), coinType);
 		Guards.integer(IotaRebased._CLASS_NAME, nameof(accountIndex), accountIndex);
 		Guards.integer(IotaRebased._CLASS_NAME, nameof(startAddressIndex), startAddressIndex);
 		Guards.integer(IotaRebased._CLASS_NAME, nameof(count), count);
@@ -99,7 +99,7 @@ export class IotaRebased {
 			const keyPair = Bip44.keyPair(
 				seed,
 				KeyType.Ed25519,
-				config.coinType ?? IotaRebased.DEFAULT_COIN_TYPE,
+				coinType ?? IotaRebased.DEFAULT_COIN_TYPE,
 				accountIndex,
 				isInternal ?? false,
 				i
@@ -293,13 +293,13 @@ export class IotaRebased {
 	): Promise<Uint8Array> {
 		try {
 			const seedBase64 = await vaultConnector.getSecret<string>(
-				IotaRebased.buildSeedKey(identity, config)
+				IotaRebased.buildSeedKey(identity, config.vaultSeedId)
 			);
 			return Converter.base64ToBytes(seedBase64);
 		} catch {}
 
 		const mnemonic = await vaultConnector.getSecret<string>(
-			IotaRebased.buildMnemonicKey(identity, config)
+			IotaRebased.buildMnemonicKey(identity, config.vaultMnemonicId)
 		);
 
 		return Bip39.mnemonicToSeed(mnemonic);
@@ -307,7 +307,7 @@ export class IotaRebased {
 
 	/**
 	 * Extract error from SDK payload.
-	 * Errors from the Sui SDK are usually not JSON strings but objects.
+	 * Errors from the IOTA Rebased SDK are usually not JSON strings but objects.
 	 * @param error The error to extract.
 	 * @returns The extracted error.
 	 */
@@ -345,21 +345,21 @@ export class IotaRebased {
 	/**
 	 * Get the key for storing the mnemonic.
 	 * @param identity The identity to use.
-	 * @param config The configuration.
+	 * @param vaultMnemonicId The mnemonic ID to use.
 	 * @returns The mnemonic key.
 	 */
-	public static buildMnemonicKey(identity: string, config: IIotaRebasedConfig): string {
-		return `${identity}/${config.vaultMnemonicId ?? IotaRebased.DEFAULT_MNEMONIC_SECRET_NAME}`;
+	public static buildMnemonicKey(identity: string, vaultMnemonicId?: string): string {
+		return `${identity}/${vaultMnemonicId ?? IotaRebased.DEFAULT_MNEMONIC_SECRET_NAME}`;
 	}
 
 	/**
 	 * Get the key for storing the seed.
 	 * @param identity The identity to use.
-	 * @param config The configuration.
+	 * @param vaultSeedId The seed ID to use.
 	 * @returns The seed key.
 	 */
-	public static buildSeedKey(identity: string, config: IIotaRebasedConfig): string {
-		return `${identity}/${config.vaultSeedId ?? IotaRebased.DEFAULT_SEED_SECRET_NAME}`;
+	public static buildSeedKey(identity: string, vaultSeedId?: string): string {
+		return `${identity}/${vaultSeedId ?? IotaRebased.DEFAULT_SEED_SECRET_NAME}`;
 	}
 
 	/**

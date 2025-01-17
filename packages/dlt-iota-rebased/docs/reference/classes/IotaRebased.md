@@ -42,7 +42,7 @@ Default coin type.
 
 > `static` **createClient**(`config`): `IotaClient`
 
-Create a new SUI client.
+Create a new IOTA Rebased client.
 
 #### Parameters
 
@@ -82,7 +82,7 @@ The configuration to populate.
 
 ### getAddresses()
 
-> `static` **getAddresses**(`seed`, `config`, `accountIndex`, `startAddressIndex`, `count`, `isInternal`?): `string`[]
+> `static` **getAddresses**(`seed`, `coinType`, `accountIndex`, `startAddressIndex`, `count`, `isInternal`?): `string`[]
 
 Get addresses for the identity.
 
@@ -94,11 +94,11 @@ Get addresses for the identity.
 
 The seed to use for generating addresses.
 
-##### config
+##### coinType
 
-[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+`number`
 
-The configuration.
+The coin type to use.
 
 ##### accountIndex
 
@@ -319,7 +319,7 @@ The seed.
 > `static` **extractPayloadError**(`error`): `IError`
 
 Extract error from SDK payload.
-Errors from the Sui SDK are usually not JSON strings but objects.
+Errors from the IOTA Rebased SDK are usually not JSON strings but objects.
 
 #### Parameters
 
@@ -339,7 +339,7 @@ The extracted error.
 
 ### buildMnemonicKey()
 
-> `static` **buildMnemonicKey**(`identity`, `config`): `string`
+> `static` **buildMnemonicKey**(`identity`, `vaultMnemonicId`?): `string`
 
 Get the key for storing the mnemonic.
 
@@ -351,11 +351,11 @@ Get the key for storing the mnemonic.
 
 The identity to use.
 
-##### config
+##### vaultMnemonicId?
 
-[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+`string`
 
-The configuration.
+The mnemonic ID to use.
 
 #### Returns
 
@@ -367,7 +367,7 @@ The mnemonic key.
 
 ### buildSeedKey()
 
-> `static` **buildSeedKey**(`identity`, `config`): `string`
+> `static` **buildSeedKey**(`identity`, `vaultSeedId`?): `string`
 
 Get the key for storing the seed.
 
@@ -379,11 +379,11 @@ Get the key for storing the seed.
 
 The identity to use.
 
-##### config
+##### vaultSeedId?
 
-[`IIotaRebasedConfig`](../interfaces/IIotaRebasedConfig.md)
+`string`
 
-The configuration.
+The seed ID to use.
 
 #### Returns
 

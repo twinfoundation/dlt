@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import type { IotaClientOptions } from "@iota/iota-sdk/client";
 import { Bip39 } from "@twin.org/crypto";
-import { TEST_CLIENT_OPTIONS, TEST_COIN_TYPE } from "./setupTestEnv";
+import { TEST_CLIENT_OPTIONS, TEST_COIN_TYPE, TEST_NETWORK } from "./setupTestEnv";
 import { IotaRebased } from "../src/iotaRebased";
 import type { IIotaRebasedConfig } from "../src/models/IIotaRebasedConfig";
 
@@ -12,7 +12,8 @@ describe("IotaRebased", () => {
 	const TEST_SEED_ID = "test-seed";
 	test("can create a client", () => {
 		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS
+			clientOptions: TEST_CLIENT_OPTIONS,
+			network: TEST_NETWORK
 		};
 
 		const client = IotaRebased.createClient(config);
@@ -23,7 +24,8 @@ describe("IotaRebased", () => {
 		const config: IIotaRebasedConfig = {
 			clientOptions: {
 				url: undefined
-			} as unknown as IotaClientOptions
+			} as unknown as IotaClientOptions,
+			network: TEST_NETWORK
 		};
 
 		expect(() => IotaRebased.createClient(config)).toThrow(
@@ -40,7 +42,8 @@ describe("IotaRebased", () => {
 
 	test("can populate config defaults", () => {
 		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS
+			clientOptions: TEST_CLIENT_OPTIONS,
+			network: TEST_NETWORK
 		};
 
 		IotaRebased.populateConfig(config);
@@ -50,22 +53,12 @@ describe("IotaRebased", () => {
 	});
 
 	test("can build seed key", () => {
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			vaultSeedId: TEST_SEED_ID
-		};
-
-		const key = IotaRebased.buildSeedKey(TEST_IDENTITY, config);
+		const key = IotaRebased.buildSeedKey(TEST_IDENTITY, TEST_SEED_ID);
 		expect(key).toBe(`${TEST_IDENTITY}/${TEST_SEED_ID}`);
 	});
 
 	test("can build mnemonic key", () => {
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			vaultMnemonicId: TEST_MNEMONIC_ID
-		};
-
-		const key = IotaRebased.buildMnemonicKey(TEST_IDENTITY, config);
+		const key = IotaRebased.buildMnemonicKey(TEST_IDENTITY, TEST_MNEMONIC_ID);
 		expect(key).toBe(`${TEST_IDENTITY}/${TEST_MNEMONIC_ID}`);
 	});
 
@@ -73,12 +66,7 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
-		const addresses = IotaRebased.getAddresses(seed, config, 0, 0, 1, false);
+		const addresses = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 1, false);
 		expect(addresses.length).toBe(1);
 		expect(addresses[0]).toBeDefined();
 	});
@@ -87,12 +75,7 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
-		const addresses = IotaRebased.getAddresses(seed, config, 0, 0, 1, false);
+		const addresses = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 1, false);
 		expect(addresses).toHaveLength(1);
 		expect(addresses[0]).toBeDefined();
 		expect(typeof addresses[0]).toBe("string");
@@ -102,13 +85,8 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
 		const count = 3;
-		const addresses = IotaRebased.getAddresses(seed, config, 0, 0, count);
+		const addresses = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, count);
 		expect(addresses).toHaveLength(count);
 		// Ensure all addresses are unique
 		const uniqueAddresses = new Set(addresses);
@@ -119,13 +97,8 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
-		const address1 = IotaRebased.getAddresses(seed, config, 0, 0, 1)[0];
-		const address2 = IotaRebased.getAddresses(seed, config, 1, 0, 1)[0];
+		const address1 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 1)[0];
+		const address2 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 1, 0, 1)[0];
 		expect(address1).not.toBe(address2);
 	});
 
@@ -133,13 +106,8 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
-		const address1 = IotaRebased.getAddresses(seed, config, 0, 0, 1)[0];
-		const address2 = IotaRebased.getAddresses(seed, config, 0, 1, 1)[0];
+		const address1 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 1)[0];
+		const address2 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 1, 1)[0];
 		expect(address1).not.toBe(address2);
 	});
 
@@ -147,13 +115,8 @@ describe("IotaRebased", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
 
-		const config: IIotaRebasedConfig = {
-			clientOptions: TEST_CLIENT_OPTIONS,
-			coinType: TEST_COIN_TYPE
-		};
-
-		const addresses1 = IotaRebased.getAddresses(seed, config, 0, 0, 2);
-		const addresses2 = IotaRebased.getAddresses(seed, config, 0, 0, 2);
+		const addresses1 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 2);
+		const addresses2 = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 2);
 		expect(addresses1).toEqual(addresses2);
 	});
 });
