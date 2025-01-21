@@ -71,6 +71,30 @@ describe("IotaRebased", () => {
 		expect(addresses[0]).toBeDefined();
 	});
 
+	test("can find an address with low range", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const addresses = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 0, 1, false);
+		expect(addresses.length).toBe(1);
+		expect(addresses[0]).toBeDefined();
+
+		const foundAddress = IotaRebased.findAddress(1000, TEST_COIN_TYPE, seed, addresses[0]);
+		expect(foundAddress.address).toEqual(addresses[0]);
+	});
+
+	test("can find an address with high range", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const addresses = IotaRebased.getAddresses(seed, TEST_COIN_TYPE, 0, 999, 1, false);
+		expect(addresses.length).toBe(1);
+		expect(addresses[0]).toBeDefined();
+
+		const foundAddress = IotaRebased.findAddress(1000, TEST_COIN_TYPE, seed, addresses[0]);
+		expect(foundAddress.address).toEqual(addresses[0]);
+	});
+
 	test("generates a single address by default", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);

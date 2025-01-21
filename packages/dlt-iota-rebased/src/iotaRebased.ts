@@ -31,6 +31,11 @@ export class IotaRebased {
 	public static readonly DEFAULT_COIN_TYPE: number = 4218;
 
 	/**
+	 * Default scan range.
+	 */
+	public static readonly DEFAULT_SCAN_RANGE: number = 1000;
+
+	/**
 	 * Runtime name for the class.
 	 * @internal
 	 */
@@ -119,6 +124,7 @@ export class IotaRebased {
 	 * @param identity The identity of the user to access the vault keys.
 	 * @param client The client instance.
 	 * @param options The transaction options.
+	 * @param options.source The source address.
 	 * @param options.amount The amount to transfer.
 	 * @param options.recipient The recipient address.
 	 * @returns The transaction result.
@@ -129,20 +135,20 @@ export class IotaRebased {
 		identity: string,
 		client: IotaClient,
 		options: {
+			source: string;
 			amount: bigint;
 			recipient: string;
 		}
 	): Promise<{ digest: string }> {
 		const seed = await this.getSeed(config, vaultConnector, identity);
-		const keyPair = Bip44.keyPair(
-			seed,
-			KeyType.Ed25519,
+
+		const addressKeyPair = IotaRebased.findAddress(
+			config.maxAddressScanRange ?? IotaRebased.DEFAULT_SCAN_RANGE,
 			config.coinType ?? IotaRebased.DEFAULT_COIN_TYPE,
-			0,
-			false,
-			0
+			seed,
+			options.source
 		);
-		const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 
 		const txb = new Transaction();
 		const [coin] = txb.splitCoins(txb.gas, [txb.pure.u64(options.amount)]);
@@ -188,15 +194,13 @@ export class IotaRebased {
 		options: IIotaRebasedNftTransactionOptions
 	): Promise<IIotaNftTransactionResponse> {
 		const seed = await this.getSeed(config, vaultConnector, identity);
-		const keyPair = Bip44.keyPair(
-			seed,
-			KeyType.Ed25519,
+		const addressKeyPair = IotaRebased.findAddress(
+			config.maxAddressScanRange ?? IotaRebased.DEFAULT_SCAN_RANGE,
 			config.coinType ?? IotaRebased.DEFAULT_COIN_TYPE,
-			0,
-			false,
-			0
+			seed,
+			options.owner
 		);
-		const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 
 		try {
 			const response = await client.signAndExecuteTransaction({
@@ -246,15 +250,13 @@ export class IotaRebased {
 		options: IIotaRebasedNftTransactionOptions
 	): Promise<IotaTransactionBlockResponse> {
 		const seed = await this.getSeed(config, vaultConnector, identity);
-		const keyPair = Bip44.keyPair(
-			seed,
-			KeyType.Ed25519,
+		const addressKeyPair = IotaRebased.findAddress(
+			config.maxAddressScanRange ?? IotaRebased.DEFAULT_SCAN_RANGE,
 			config.coinType ?? IotaRebased.DEFAULT_COIN_TYPE,
-			0,
-			false,
-			0
+			seed,
+			options.owner
 		);
-		const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 
 		try {
 			const response = await client.signAndExecuteTransaction({
@@ -303,6 +305,36 @@ export class IotaRebased {
 		);
 
 		return Bip39.mnemonicToSeed(mnemonic);
+	}
+
+	/**
+	 * Find the address in the seed.
+	 * @param maxScanRange The maximum range to scan.
+	 * @param coinType The coin type to use.
+	 * @param seed The seed to use.
+	 * @param address The address to find.
+	 * @returns The address key pair.
+	 * @throws Error if the address is not found.
+	 */
+	public static findAddress(
+		maxScanRange: number,
+		coinType: number,
+		seed: Uint8Array,
+		address: string
+	): {
+		address: string;
+		privateKey: Uint8Array;
+		publicKey: Uint8Array;
+	} {
+		for (let i = 0; i < maxScanRange; i++) {
+			const addressKeyPair = Bip44.address(seed, KeyType.Ed25519, coinType, 0, false, i);
+
+			if (addressKeyPair.address === address) {
+				return addressKeyPair;
+			}
+		}
+
+		throw new GeneralError(IotaRebased._CLASS_NAME, "addressNotFound", { address });
 	}
 
 	/**

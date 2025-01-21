@@ -33,4 +33,10 @@ export interface IIotaRebasedConfig {
 	 * @default IOTA 4218
 	 */
 	coinType?: number;
+
+	/**
+	 * The maximum range to scan for addresses.
+	 * @default 1000
+	 */
+	maxAddressScanRange?: number;
 }
