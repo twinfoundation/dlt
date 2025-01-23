@@ -1,4 +1,4 @@
-# Interface: IIotaDryRunResponse
+# Interface: IIotaDryRun
 
 Interface for the dry run transaction response.
 

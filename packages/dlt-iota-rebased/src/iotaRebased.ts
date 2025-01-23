@@ -8,7 +8,7 @@ import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
-import type { IIotaDryRunResponse } from "./models/IIotaDryRunResponse";
+import type { IIotaDryRun } from "./models/IIotaDryRun";
 import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
 import type { IIotaRebasedConfig } from "./models/IIotaRebasedConfig";
 import type { IIotaRebasedNftTransactionOptions } from "./models/IIotaRebasedNftTransactionOptions";
@@ -450,7 +450,7 @@ export class IotaRebased {
 		txb: Transaction,
 		sender: string,
 		operation: string
-	): Promise<IIotaDryRunResponse> {
+	): Promise<IIotaDryRun> {
 		try {
 			txb.setSender(sender);
 

@@ -493,7 +493,7 @@ True if the package exists, false otherwise.
 
 ### dryRunTransaction()
 
-> `static` **dryRunTransaction**(`client`, `logging`, `className`, `txb`, `sender`, `operation`): `Promise`\<[`IIotaDryRunResponse`](../interfaces/IIotaDryRunResponse.md)\>
+> `static` **dryRunTransaction**(`client`, `logging`, `className`, `txb`, `sender`, `operation`): `Promise`\<[`IIotaDryRun`](../interfaces/IIotaDryRun.md)\>
 
 Dry run a transaction and log the results.
 
@@ -537,6 +537,6 @@ The operation to log.
 
 #### Returns
 
-`Promise`\<[`IIotaDryRunResponse`](../interfaces/IIotaDryRunResponse.md)\>
+`Promise`\<[`IIotaDryRun`](../interfaces/IIotaDryRun.md)\>
 
 void.

@@ -5,7 +5,7 @@ import type { BalanceChange, IotaEvent, IotaObjectChange } from "@iota/iota-sdk/
 /**
  * Interface for the dry run transaction response.
  */
-export interface IIotaDryRunResponse {
+export interface IIotaDryRun {
 	/**
 	 * The status of the dry run.
 	 */
