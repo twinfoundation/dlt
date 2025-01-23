@@ -32,14 +32,15 @@
 		"@iota/iota-sdk": "^0.4.1",
 		"@twin.org/core": "next",
 		"@twin.org/crypto": "next",
+		"@twin.org/logging-models": "^0.0.1-next.2",
 		"@twin.org/nameof": "next",
 		"@twin.org/vault-models": "next"
 	},
 	"devDependencies": {
-		"@twin.org/nameof-vitest-plugin": "next",
 		"@twin.org/entity": "next",
 		"@twin.org/entity-storage-connector-memory": "next",
 		"@twin.org/nameof-transformer": "next",
+		"@twin.org/nameof-vitest-plugin": "next",
 		"@twin.org/vault-connector-entity-storage": "next",
 		"@vitest/coverage-v8": "3.0.1",
 		"copyfiles": "2.4.1",

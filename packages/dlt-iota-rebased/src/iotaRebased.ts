@@ -5,6 +5,7 @@ import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { BaseError, Converter, GeneralError, Guards, type IError } from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
+import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
@@ -427,6 +428,76 @@ export class IotaRebased {
 			throw new GeneralError(IotaRebased._CLASS_NAME, "packageNotFoundOnNetwork", {
 				packageId,
 				error: IotaRebased.extractPayloadError(error)
+			});
+		}
+	}
+
+	/**
+	 * Dry run a transaction and log the results.
+	 * @param client The IOTA client.
+	 * @param logging The logging connector.
+	 * @param className The class name for logging.
+	 * @param txb The transaction to dry run.
+	 * @param sender The sender address.
+	 * @param operation The operation to log.
+	 * @returns void.
+	 */
+	public static async dryRunTransactionAndLog(
+		client: IotaClient,
+		logging: ILoggingConnector | undefined,
+		className: string,
+		txb: Transaction,
+		sender: string,
+		operation: string
+	): Promise<void> {
+		if (!logging) {
+			return;
+		}
+
+		try {
+			txb.setSender(sender);
+
+			const builtTx = await txb.build({
+				client,
+				onlyTransactionKind: false
+			});
+
+			const dryRunResult = await client.dryRunTransactionBlock({
+				transactionBlock: builtTx
+			});
+
+			if (dryRunResult.effects) {
+				await logging.log({
+					level: "info",
+					source: className,
+					ts: Date.now(),
+					message: "transactionCosts",
+					data: {
+						operation,
+						status: dryRunResult.effects.status,
+						costs: {
+							computationCost: dryRunResult.effects.gasUsed.computationCost,
+							computationCostBurned: dryRunResult.effects.gasUsed.computationCostBurned,
+							storageCost: dryRunResult.effects.gasUsed.storageCost,
+							storageRebate: dryRunResult.effects.gasUsed.storageRebate,
+							nonRefundableStorageFee: dryRunResult.effects.gasUsed.nonRefundableStorageFee
+						},
+						events: dryRunResult.events,
+						balanceChanges: dryRunResult.balanceChanges,
+						objectChanges: dryRunResult.objectChanges
+					}
+				});
+			}
+		} catch (error) {
+			await logging.log({
+				level: "error",
+				source: className,
+				ts: Date.now(),
+				message: "dryRunFailed",
+				error: BaseError.fromError(error),
+				data: {
+					operation
+				}
 			});
 		}
 	}

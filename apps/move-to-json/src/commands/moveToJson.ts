@@ -331,15 +331,11 @@ function normalizePathsAndWorkingDir(
 	executionDir: string;
 } {
 	// Get the directory where the command was run
-	const executionDir = process.env.INIT_CWD ?? process.cwd();
+	const executionDir = process.cwd();
 
 	// Normalize paths for cross-platform compatibility
-	const normalizedGlob = inputGlob.replace(/\\/g, "/");
-
-	// Make output path absolute if it's relative
-	const normalizedOutput = path.isAbsolute(outputJson)
-		? outputJson
-		: path.join(executionDir, outputJson);
+	const normalizedGlob = path.resolve(inputGlob).replace(/\\/g, "/");
+	const normalizedOutput = path.resolve(outputJson);
 
 	return {
 		normalizedGlob,
