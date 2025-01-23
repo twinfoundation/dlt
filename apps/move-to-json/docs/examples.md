@@ -59,10 +59,10 @@ myContract.move
 myOtherContract.move
 ```
 
-Where “myProject” is considered the “project root”:
+Where `myProject` is considered the `project root`:
 
-- The CLI runs “iota move build” or “sui move build” in the project root (the folder containing Move.toml).
-- The compiled .mv bytecode modules are placed under build/<snake_case_package_name>/bytecode_modules.
+- The CLI runs `iota move build` or `sui move build` in the project root (the folder containing Move.toml).
+- The compiled .mv bytecode modules are placed under `build/<snake_case_package_name>/bytecode_modules`.
 - The CLI loads these .mv files, computes a package ID (SHA3-256), and Base64-encodes them.
 
 However, you can pass any glob pattern that matches one or more .move files. For each file, the CLI will move up one directory from wherever that file is located until it finds the Move.toml. As long as each .move file resides in a standard Move project folder (meaning you do have a Move.toml in its parent directory or above), this tool can find and build the contract.
@@ -80,11 +80,11 @@ Then your glob might look like:
 move-to-json "./somewhere/nested/sources/*.move" ./build/contracts.json
 ```
 
-The CLI will automatically detect the project root as “./somewhere/nested” and run the Move compiler there.
+The CLI will automatically detect the project root as `./somewhere/nested` and run the Move compiler there.
 
 ## Output JSON Format
 
-The resulting JSON file (e.g. ./src/contracts/contracts.json) will be updated with an entry for each contract file. The key is the kebab-cased file name (e.g. myContract.move → “my-contract”).
+The resulting JSON file (e.g. `./src/contracts/contracts.json`) will be updated with an entry for each contract file. The key is the kebab-cased file name (e.g. `myContract.move` → `my-contract`).
 
 Each entry has:
 

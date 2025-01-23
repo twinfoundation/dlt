@@ -488,3 +488,55 @@ The package ID to check.
 `Promise`\<`boolean`\>
 
 True if the package exists, false otherwise.
+
+***
+
+### dryRunTransaction()
+
+> `static` **dryRunTransaction**(`client`, `logging`, `className`, `txb`, `sender`, `operation`): `Promise`\<[`IIotaDryRun`](../interfaces/IIotaDryRun.md)\>
+
+Dry run a transaction and log the results.
+
+#### Parameters
+
+##### client
+
+`IotaClient`
+
+The IOTA client.
+
+##### logging
+
+The logging connector.
+
+`undefined` | `ILoggingConnector`
+
+##### className
+
+`string`
+
+The class name for logging.
+
+##### txb
+
+`Transaction`
+
+The transaction to dry run.
+
+##### sender
+
+`string`
+
+The sender address.
+
+##### operation
+
+`string`
+
+The operation to log.
+
+#### Returns
+
+`Promise`\<[`IIotaDryRun`](../interfaces/IIotaDryRun.md)\>
+
+void.

@@ -53,10 +53,19 @@ export async function actionCommandMoveToJson(
 		// Verify the SDK before we do anything else
 		await verifyPlatformSDK(opts.platform ?? PlatformTypes.Iota);
 
+		// Normalize paths and get working directory
+		const { normalizedGlob, normalizedOutput, executionDir } = normalizePathsAndWorkingDir(
+			inputGlob,
+			outputJson
+		);
+
 		CLIDisplay.section(I18n.formatMessage("commands.move-to-json.section.start"));
 
 		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.inputGlob"), inputGlob);
-		CLIDisplay.value(I18n.formatMessage("commands.move-to-json.labels.outputJson"), outputJson);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.move-to-json.labels.outputJson"),
+			normalizedOutput
+		);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.move-to-json.labels.platform"),
 			opts.platform ?? PlatformTypes.Iota
@@ -65,7 +74,19 @@ export async function actionCommandMoveToJson(
 
 		// Find matching .move files
 		CLIDisplay.task(I18n.formatMessage("commands.move-to-json.progress.searchingFiles"));
-		const matchedFiles = await FastGlob(inputGlob.replace(/\\/g, "/"));
+
+		const matchedFiles = await FastGlob(
+			[normalizedGlob, "!**/build/**/*.move", "!**/dependencies/**/*.move"],
+			{
+				cwd: executionDir,
+				absolute: true,
+				dot: true,
+				followSymbolicLinks: false,
+				caseSensitiveMatch: false, // Important for Windows
+				onlyFiles: true,
+				stats: false
+			}
+		);
 
 		if (matchedFiles.length === 0) {
 			CLIDisplay.value(
@@ -83,19 +104,19 @@ export async function actionCommandMoveToJson(
 
 		let finalJson: ICompiledModules = {};
 
-		if (await CLIUtils.fileExists(outputJson)) {
+		if (await CLIUtils.fileExists(normalizedOutput)) {
 			try {
-				const existingData = await fsPromises.readFile(outputJson, "utf8");
+				const existingData = await fsPromises.readFile(normalizedOutput, "utf8");
 				finalJson = JSON.parse(existingData);
 				CLIDisplay.value(
 					I18n.formatMessage("commands.move-to-json.labels.mergingWithExistingJson"),
-					outputJson
+					normalizedOutput
 				);
 			} catch (err) {
 				throw new GeneralError(
 					"commands",
 					"commands.move-to-json.failedReadingOutputJson",
-					{ file: outputJson },
+					{ file: normalizedOutput },
 					err
 				);
 			}
@@ -134,20 +155,20 @@ export async function actionCommandMoveToJson(
 
 		// Ensure the output directory exists
 		try {
-			await fsPromises.mkdir(path.dirname(outputJson), { recursive: true });
+			await fsPromises.mkdir(path.dirname(normalizedOutput), { recursive: true });
 		} catch (err) {
 			throw new GeneralError(
 				"commands",
 				"commands.move-to-json.mkdirFailed",
 				{
-					dir: path.dirname(outputJson)
+					dir: path.dirname(normalizedOutput)
 				},
 				err
 			);
 		}
 
 		CLIDisplay.task(I18n.formatMessage("commands.move-to-json.progress.writingJsonFile"));
-		await CLIUtils.writeJsonFile(outputJson, finalJson, true);
+		await CLIUtils.writeJsonFile(normalizedOutput, finalJson, true);
 
 		CLIDisplay.break();
 		CLIDisplay.done();
@@ -293,4 +314,32 @@ async function verifyPlatformSDK(platform: string): Promise<void> {
 	} catch (err) {
 		throw new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform }, err);
 	}
+}
+
+/**
+ * Normalize paths and resolve working directory for cross-platform compatibility.
+ * @param inputGlob The input glob pattern
+ * @param outputJson The output JSON file path
+ * @returns Normalized paths and working directory
+ */
+function normalizePathsAndWorkingDir(
+	inputGlob: string,
+	outputJson: string
+): {
+	normalizedGlob: string;
+	normalizedOutput: string;
+	executionDir: string;
+} {
+	// Get the directory where the command was run
+	const executionDir = process.cwd();
+
+	// Normalize paths for cross-platform compatibility
+	const normalizedGlob = path.resolve(inputGlob).replace(/\\/g, "/");
+	const normalizedOutput = path.resolve(outputJson);
+
+	return {
+		normalizedGlob,
+		normalizedOutput,
+		executionDir
+	};
 }

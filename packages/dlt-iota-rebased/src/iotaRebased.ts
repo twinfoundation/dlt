@@ -5,8 +5,10 @@ import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { BaseError, Converter, GeneralError, Guards, type IError } from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
+import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
+import type { IIotaDryRun } from "./models/IIotaDryRun";
 import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
 import type { IIotaRebasedConfig } from "./models/IIotaRebasedConfig";
 import type { IIotaRebasedNftTransactionOptions } from "./models/IIotaRebasedNftTransactionOptions";
@@ -428,6 +430,80 @@ export class IotaRebased {
 				packageId,
 				error: IotaRebased.extractPayloadError(error)
 			});
+		}
+	}
+
+	/**
+	 * Dry run a transaction and log the results.
+	 * @param client The IOTA client.
+	 * @param logging The logging connector.
+	 * @param className The class name for logging.
+	 * @param txb The transaction to dry run.
+	 * @param sender The sender address.
+	 * @param operation The operation to log.
+	 * @returns void.
+	 */
+	public static async dryRunTransaction(
+		client: IotaClient,
+		logging: ILoggingConnector | undefined,
+		className: string,
+		txb: Transaction,
+		sender: string,
+		operation: string
+	): Promise<IIotaDryRun> {
+		try {
+			txb.setSender(sender);
+
+			const builtTx = await txb.build({
+				client,
+				onlyTransactionKind: false
+			});
+
+			const dryRunResult = await client.dryRunTransactionBlock({
+				transactionBlock: builtTx
+			});
+
+			if (dryRunResult.effects.status?.status !== "success") {
+				throw new GeneralError(this._CLASS_NAME, "dryRunFailed", {
+					error: dryRunResult.effects?.status?.error
+				});
+			}
+
+			const result = {
+				status: dryRunResult.effects.status.status,
+				costs: {
+					computationCost: dryRunResult.effects.gasUsed.computationCost,
+					computationCostBurned: dryRunResult.effects.gasUsed.computationCostBurned,
+					storageCost: dryRunResult.effects.gasUsed.storageCost,
+					storageRebate: dryRunResult.effects.gasUsed.storageRebate,
+					nonRefundableStorageFee: dryRunResult.effects.gasUsed.nonRefundableStorageFee
+				},
+				events: dryRunResult.events ?? [],
+				balanceChanges: dryRunResult.balanceChanges ?? [],
+				objectChanges: dryRunResult.objectChanges ?? []
+			};
+
+			if (logging) {
+				await logging.log({
+					level: "info",
+					source: className,
+					ts: Date.now(),
+					message: "transactionCosts",
+					data: {
+						operation,
+						...result
+					}
+				});
+			}
+
+			return result;
+		} catch (error) {
+			throw new GeneralError(
+				IotaRebased._CLASS_NAME,
+				"dryRunFailed",
+				undefined,
+				IotaRebased.extractPayloadError(error)
+			);
 		}
 	}
 }
