@@ -1,4 +1,4 @@
-# Interface: IIotaRebasedConfig
+# Interface: IIotaStardustConfig
 
 Configuration for IOTA.
 
@@ -6,17 +6,9 @@ Configuration for IOTA.
 
 ### clientOptions
 
-> **clientOptions**: `NetworkOrTransport`
+> **clientOptions**: `IClientOptions`
 
 The configuration for the client.
-
-***
-
-### network
-
-> **network**: `string`
-
-The network the operations are being performed on.
 
 ***
 
@@ -62,14 +54,28 @@ IOTA 4218
 
 ***
 
-### maxAddressScanRange?
+### bech32Hrp?
 
-> `optional` **maxAddressScanRange**: `number`
+> `optional` **bech32Hrp**: `string`
 
-The maximum range to scan for addresses.
+The bech32 human readable part for the addresses.
 
 #### Default
 
 ```ts
-1000
+iota
+```
+
+***
+
+### inclusionTimeoutSeconds?
+
+> `optional` **inclusionTimeoutSeconds**: `number`
+
+The length of time to wait for the inclusion of a transaction in seconds.
+
+#### Default
+
+```ts
+60
 ```

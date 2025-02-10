@@ -1,16 +1,17 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import {
-	CoinType,
-	type Block,
-	type Client,
-	type IBuildBlockOptions
-} from "@iota/sdk-wasm/node/lib/index.js";
-import { BaseError, Converter, GeneralError, Guards, Is, type IError } from "@twin.org/core";
+import { IotaClient, type IotaTransactionBlockResponse } from "@iota/iota-sdk/client";
+import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
+import { Transaction } from "@iota/iota-sdk/transactions";
+import { BaseError, Converter, GeneralError, Guards, type IError } from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
+import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import type { IIotaConfig } from "./models/IIotaConfig";
+import type { IIotaDryRun } from "./models/IIotaDryRun";
+import type { IIotaNftTransactionOptions } from "./models/IIotaNftTransactionOptions";
+import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
 
 /**
  * Class for performing operations on IOTA.
@@ -29,23 +30,31 @@ export class Iota {
 	/**
 	 * Default coin type.
 	 */
-	public static readonly DEFAULT_COIN_TYPE: number = CoinType.IOTA;
+	public static readonly DEFAULT_COIN_TYPE: number = 4218;
 
 	/**
-	 * Default bech32 hrp.
+	 * Default scan range.
 	 */
-	public static readonly DEFAULT_BECH32_HRP: string = "iota";
-
-	/**
-	 * The default length of time to wait for the inclusion of a transaction in seconds.
-	 */
-	public static readonly DEFAULT_INCLUSION_TIMEOUT: number = 60;
+	public static readonly DEFAULT_SCAN_RANGE: number = 1000;
 
 	/**
 	 * Runtime name for the class.
 	 * @internal
 	 */
 	private static readonly _CLASS_NAME: string = nameof<Iota>();
+
+	/**
+	 * Create a new IOTA client.
+	 * @param config The configuration.
+	 * @returns The client instance.
+	 */
+	public static createClient(config: IIotaConfig): IotaClient {
+		Guards.object(Iota._CLASS_NAME, nameof(config), config);
+		Guards.object(Iota._CLASS_NAME, nameof(config.clientOptions), config.clientOptions);
+		Guards.string(Iota._CLASS_NAME, nameof(config.clientOptions.url), config.clientOptions.url);
+
+		return new IotaClient(config.clientOptions);
+	}
 
 	/**
 	 * Create configuration using defaults where necessary.
@@ -61,97 +70,213 @@ export class Iota {
 		config.vaultMnemonicId ??= Iota.DEFAULT_MNEMONIC_SECRET_NAME;
 		config.vaultSeedId ??= Iota.DEFAULT_SEED_SECRET_NAME;
 		config.coinType ??= Iota.DEFAULT_COIN_TYPE;
-		config.bech32Hrp ??= Iota.DEFAULT_BECH32_HRP;
-		config.inclusionTimeoutSeconds ??= Iota.DEFAULT_INCLUSION_TIMEOUT;
 	}
 
 	/**
-	 * Get the addresses for the requested range.
-	 * @param config The configuration to use.
-	 * @param vaultConnector The vault connector to use.
-	 * @param identity The identity of the user to access the vault keys.
+	 * Get addresses for the identity.
+	 * @param seed The seed to use for generating addresses.
+	 * @param coinType The coin type to use.
 	 * @param accountIndex The account index to get the addresses for.
 	 * @param startAddressIndex The start index for the addresses.
 	 * @param count The number of addresses to generate.
+	 * @param isInternal Whether the addresses are internal.
 	 * @returns The list of addresses.
 	 */
-	public static async getAddresses(
-		config: IIotaConfig,
-		vaultConnector: IVaultConnector,
-		identity: string,
+	public static getAddresses(
+		seed: Uint8Array,
+		coinType: number,
 		accountIndex: number,
 		startAddressIndex: number,
-		count: number
-	): Promise<string[]> {
-		Guards.stringValue(Iota._CLASS_NAME, nameof(identity), identity);
+		count: number,
+		isInternal?: boolean
+	): string[] {
+		Guards.integer(Iota._CLASS_NAME, nameof(coinType), coinType);
+		Guards.integer(Iota._CLASS_NAME, nameof(accountIndex), accountIndex);
 		Guards.integer(Iota._CLASS_NAME, nameof(startAddressIndex), startAddressIndex);
 		Guards.integer(Iota._CLASS_NAME, nameof(count), count);
 
-		const seed = await Iota.getSeed(config, vaultConnector, identity);
-
-		const keyPairs: string[] = [];
+		const addresses: string[] = [];
 
 		for (let i = startAddressIndex; i < startAddressIndex + count; i++) {
-			const addressKeyPair = Bip44.addressBech32(
+			// Derive the keypair using the seed
+			const keyPair = Bip44.keyPair(
 				seed,
 				KeyType.Ed25519,
-				config.bech32Hrp ?? Iota.DEFAULT_BECH32_HRP,
-				config.coinType ?? Iota.DEFAULT_COIN_TYPE,
+				coinType ?? Iota.DEFAULT_COIN_TYPE,
 				accountIndex,
-				false,
+				isInternal ?? false,
 				i
 			);
 
-			keyPairs.push(addressKeyPair.address);
+			const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+			addresses.push(keypair.getPublicKey().toIotaAddress());
 		}
 
-		return keyPairs;
+		return addresses;
 	}
 
 	/**
-	 * Prepare a transaction for sending, post and wait for inclusion.
-	 * @param config The configuration to use.
-	 * @param vaultConnector The vault connector to use.
+	 * Prepare and post a transaction.
+	 * @param config The configuration.
+	 * @param vaultConnector The vault connector.
 	 * @param identity The identity of the user to access the vault keys.
-	 * @param client The client to use.
-	 * @param options The options for the transaction.
-	 * @returns The block id and block.
+	 * @param client The client instance.
+	 * @param options The transaction options.
+	 * @param options.source The source address.
+	 * @param options.amount The amount to transfer.
+	 * @param options.recipient The recipient address.
+	 * @returns The transaction result.
 	 */
 	public static async prepareAndPostTransaction(
 		config: IIotaConfig,
 		vaultConnector: IVaultConnector,
 		identity: string,
-		client: Client,
-		options: IBuildBlockOptions
-	): Promise<{ blockId: string; block: Block }> {
+		client: IotaClient,
+		options: {
+			source: string;
+			amount: bigint;
+			recipient: string;
+		}
+	): Promise<{ digest: string }> {
 		const seed = await this.getSeed(config, vaultConnector, identity);
-		const secretManager = { hexSeed: Converter.bytesToHex(seed, true) };
-		const prepared = await client.prepareTransaction(secretManager, {
-			coinType: config.coinType ?? Iota.DEFAULT_COIN_TYPE,
-			...options
-		});
 
-		const signed = await client.signTransaction(secretManager, prepared);
+		const addressKeyPair = Iota.findAddress(
+			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
+			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
+			seed,
+			options.source
+		);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 
-		const blockIdAndBlock = await client.postBlockPayload(signed);
+		const txb = new Transaction();
+		const [coin] = txb.splitCoins(txb.gas, [txb.pure.u64(options.amount)]);
+		txb.transferObjects([coin], txb.pure.address(options.recipient));
 
 		try {
-			const timeoutSeconds = config.inclusionTimeoutSeconds ?? Iota.DEFAULT_INCLUSION_TIMEOUT;
+			const result = await client.signAndExecuteTransaction({
+				transaction: txb,
+				signer: keypair,
+				requestType: "WaitForLocalExecution",
+				options: {
+					showEffects: true,
+					showEvents: true,
+					showObjectChanges: true
+				}
+			});
 
-			await client.retryUntilIncluded(blockIdAndBlock[0], 2, Math.ceil(timeoutSeconds / 2));
+			return { digest: result.digest };
 		} catch (error) {
 			throw new GeneralError(
 				Iota._CLASS_NAME,
-				"inclusionFailed",
+				"transactionFailed",
 				undefined,
 				Iota.extractPayloadError(error)
 			);
 		}
+	}
 
-		return {
-			blockId: blockIdAndBlock[0],
-			block: blockIdAndBlock[1]
-		};
+	/**
+	 * Prepare and post an NFT transaction.
+	 * @param config The configuration.
+	 * @param vaultConnector The vault connector.
+	 * @param identity The identity of the user to access the vault keys.
+	 * @param client The client instance.
+	 * @param options The NFT transaction options.
+	 * @returns The transaction response.
+	 */
+	public static async prepareAndPostNftTransaction(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		identity: string,
+		client: IotaClient,
+		options: IIotaNftTransactionOptions
+	): Promise<IIotaNftTransactionResponse> {
+		const seed = await this.getSeed(config, vaultConnector, identity);
+		const addressKeyPair = Iota.findAddress(
+			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
+			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
+			seed,
+			options.owner
+		);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
+
+		try {
+			const response = await client.signAndExecuteTransaction({
+				transaction: options.transaction,
+				signer: keypair,
+				requestType: "WaitForLocalExecution",
+				options: {
+					showEffects: options.showEffects ?? true,
+					showEvents: options.showEvents ?? true,
+					showObjectChanges: options.showObjectChanges ?? true
+				}
+			});
+
+			// Extract created object for mint operations
+			const createdObject = response.effects?.created?.[0]?.reference?.objectId
+				? { objectId: response.effects.created[0].reference.objectId }
+				: undefined;
+
+			return {
+				...response,
+				createdObject
+			};
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"nftTransactionFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Prepare and post a storage transaction.
+	 * @param config The configuration.
+	 * @param vaultConnector The vault connector.
+	 * @param identity The identity of the user to access the vault keys.
+	 * @param client The client instance.
+	 * @param options The storage transaction options.
+	 * @returns The transaction response.
+	 */
+	public static async prepareAndPostStorageTransaction(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		identity: string,
+		client: IotaClient,
+		options: IIotaNftTransactionOptions
+	): Promise<IotaTransactionBlockResponse> {
+		const seed = await this.getSeed(config, vaultConnector, identity);
+		const addressKeyPair = Iota.findAddress(
+			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
+			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
+			seed,
+			options.owner
+		);
+		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
+
+		try {
+			const response = await client.signAndExecuteTransaction({
+				transaction: options.transaction,
+				signer: keypair,
+				requestType: "WaitForLocalExecution",
+				options: {
+					showEffects: options.showEffects ?? true,
+					showEvents: options.showEvents ?? true,
+					showObjectChanges: options.showObjectChanges ?? true
+				}
+			});
+
+			return response;
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"storageTransactionFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
 	}
 
 	/**
@@ -168,56 +293,213 @@ export class Iota {
 	): Promise<Uint8Array> {
 		try {
 			const seedBase64 = await vaultConnector.getSecret<string>(
-				Iota.buildSeedKey(config, identity)
+				Iota.buildSeedKey(identity, config.vaultSeedId)
 			);
 			return Converter.base64ToBytes(seedBase64);
 		} catch {}
 
 		const mnemonic = await vaultConnector.getSecret<string>(
-			Iota.buildMnemonicKey(config, identity)
+			Iota.buildMnemonicKey(identity, config.vaultMnemonicId)
 		);
 
 		return Bip39.mnemonicToSeed(mnemonic);
 	}
 
 	/**
+	 * Find the address in the seed.
+	 * @param maxScanRange The maximum range to scan.
+	 * @param coinType The coin type to use.
+	 * @param seed The seed to use.
+	 * @param address The address to find.
+	 * @returns The address key pair.
+	 * @throws Error if the address is not found.
+	 */
+	public static findAddress(
+		maxScanRange: number,
+		coinType: number,
+		seed: Uint8Array,
+		address: string
+	): {
+		address: string;
+		privateKey: Uint8Array;
+		publicKey: Uint8Array;
+	} {
+		for (let i = 0; i < maxScanRange; i++) {
+			const addressKeyPair = Bip44.address(seed, KeyType.Ed25519, coinType, 0, false, i);
+
+			if (addressKeyPair.address === address) {
+				return addressKeyPair;
+			}
+		}
+
+		throw new GeneralError(Iota._CLASS_NAME, "addressNotFound", { address });
+	}
+
+	/**
 	 * Extract error from SDK payload.
+	 * Errors from the IOTA SDK are usually not JSON strings but objects.
 	 * @param error The error to extract.
 	 * @returns The extracted error.
 	 */
 	public static extractPayloadError(error: unknown): IError {
-		if (Is.json(error)) {
-			const obj = JSON.parse(error);
-			const message = obj.payload?.error;
-			if (message === "no input with matching ed25519 address provided") {
+		if (error && typeof error === "object") {
+			const errObj = error as { code?: string; message?: string };
+
+			if (errObj.code === "InsufficientGas") {
 				return new GeneralError(Iota._CLASS_NAME, "insufficientFunds");
 			}
+
 			return {
 				name: "IOTA",
-				message
+				message: errObj.message ?? "Unknown error"
 			};
+		} else if (typeof error === "string") {
+			try {
+				const parsedError = JSON.parse(error);
+				return {
+					name: "IOTA",
+					message: parsedError.message ?? "Unknown error"
+				};
+			} catch {
+				// The error string is not valid JSON
+				return {
+					name: "IOTA",
+					message: error
+				};
+			}
 		}
 
 		return BaseError.fromError(error);
 	}
 
 	/**
-	 * Build the key name to access the mnemonic in the vault.
-	 * @param config The configuration to use.
-	 * @param identity The identity of the user to access the vault keys.
-	 * @returns The vault key.
+	 * Get the key for storing the mnemonic.
+	 * @param identity The identity to use.
+	 * @param vaultMnemonicId The mnemonic ID to use.
+	 * @returns The mnemonic key.
 	 */
-	public static buildMnemonicKey(config: IIotaConfig, identity: string): string {
-		return `${identity}/${config.vaultMnemonicId ?? Iota.DEFAULT_MNEMONIC_SECRET_NAME}`;
+	public static buildMnemonicKey(identity: string, vaultMnemonicId?: string): string {
+		return `${identity}/${vaultMnemonicId ?? Iota.DEFAULT_MNEMONIC_SECRET_NAME}`;
 	}
 
 	/**
-	 * Build the key name to access the seed in the vault.
-	 * @param config The configuration to use.
-	 * @param identity The identity of the user to access the vault keys.
-	 * @returns The vault key.
+	 * Get the key for storing the seed.
+	 * @param identity The identity to use.
+	 * @param vaultSeedId The seed ID to use.
+	 * @returns The seed key.
 	 */
-	public static buildSeedKey(config: IIotaConfig, identity: string): string {
-		return `${identity}/${config.vaultSeedId ?? Iota.DEFAULT_SEED_SECRET_NAME}`;
+	public static buildSeedKey(identity: string, vaultSeedId?: string): string {
+		return `${identity}/${vaultSeedId ?? Iota.DEFAULT_SEED_SECRET_NAME}`;
+	}
+
+	/**
+	 * Check if the package exists on the network.
+	 * @param client The client to use.
+	 * @param packageId The package ID to check.
+	 * @returns True if the package exists, false otherwise.
+	 */
+	public static async packageExistsOnNetwork(
+		client: IotaClient,
+		packageId: string
+	): Promise<boolean> {
+		try {
+			const packageObject = await client.getObject({
+				id: packageId,
+				options: {
+					showType: true
+				}
+			});
+
+			if ("error" in packageObject) {
+				if (packageObject?.error?.code === "notExists") {
+					return false;
+				}
+				throw new GeneralError(Iota._CLASS_NAME, "packageObjectError", {
+					packageId,
+					error: packageObject.error
+				});
+			}
+
+			return true;
+		} catch (error) {
+			throw new GeneralError(Iota._CLASS_NAME, "packageNotFoundOnNetwork", {
+				packageId,
+				error: Iota.extractPayloadError(error)
+			});
+		}
+	}
+
+	/**
+	 * Dry run a transaction and log the results.
+	 * @param client The IOTA client.
+	 * @param logging The logging connector.
+	 * @param className The class name for logging.
+	 * @param txb The transaction to dry run.
+	 * @param sender The sender address.
+	 * @param operation The operation to log.
+	 * @returns void.
+	 */
+	public static async dryRunTransaction(
+		client: IotaClient,
+		logging: ILoggingConnector | undefined,
+		className: string,
+		txb: Transaction,
+		sender: string,
+		operation: string
+	): Promise<IIotaDryRun> {
+		try {
+			txb.setSender(sender);
+
+			const builtTx = await txb.build({
+				client,
+				onlyTransactionKind: false
+			});
+
+			const dryRunResult = await client.dryRunTransactionBlock({
+				transactionBlock: builtTx
+			});
+
+			if (dryRunResult.effects.status?.status !== "success") {
+				throw new GeneralError(this._CLASS_NAME, "dryRunFailed", {
+					error: dryRunResult.effects?.status?.error
+				});
+			}
+
+			const result = {
+				status: dryRunResult.effects.status.status,
+				costs: {
+					computationCost: dryRunResult.effects.gasUsed.computationCost,
+					computationCostBurned: dryRunResult.effects.gasUsed.computationCostBurned,
+					storageCost: dryRunResult.effects.gasUsed.storageCost,
+					storageRebate: dryRunResult.effects.gasUsed.storageRebate,
+					nonRefundableStorageFee: dryRunResult.effects.gasUsed.nonRefundableStorageFee
+				},
+				events: dryRunResult.events ?? [],
+				balanceChanges: dryRunResult.balanceChanges ?? [],
+				objectChanges: dryRunResult.objectChanges ?? []
+			};
+
+			if (logging) {
+				await logging.log({
+					level: "info",
+					source: className,
+					ts: Date.now(),
+					message: "transactionCosts",
+					data: {
+						operation,
+						...result
+					}
+				});
+			}
+
+			return result;
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"dryRunFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
 	}
 }

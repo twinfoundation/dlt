@@ -1,20 +1,15 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import type { IotaClientOptions } from "@iota/iota-sdk/client";
+import type { IClientOptions } from "@iota/sdk-wasm/node/lib/index.js";
 
 /**
  * Configuration for IOTA.
  */
-export interface IIotaRebasedConfig {
+export interface IIotaStardustConfig {
 	/**
 	 * The configuration for the client.
 	 */
-	clientOptions: IotaClientOptions;
-
-	/**
-	 * The network the operations are being performed on.
-	 */
-	network: string;
+	clientOptions: IClientOptions;
 
 	/**
 	 * The id of the entry in the vault containing the mnemonic.
@@ -35,8 +30,14 @@ export interface IIotaRebasedConfig {
 	coinType?: number;
 
 	/**
-	 * The maximum range to scan for addresses.
-	 * @default 1000
+	 * The bech32 human readable part for the addresses.
+	 * @default iota
 	 */
-	maxAddressScanRange?: number;
+	bech32Hrp?: string;
+
+	/**
+	 * The length of time to wait for the inclusion of a transaction in seconds.
+	 * @default 60
+	 */
+	inclusionTimeoutSeconds?: number;
 }

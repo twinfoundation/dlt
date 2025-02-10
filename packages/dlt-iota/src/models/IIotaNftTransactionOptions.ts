@@ -5,7 +5,7 @@ import type { Transaction } from "@iota/iota-sdk/transactions";
 /**
  * Options for NFT transactions.
  */
-export interface IIotaRebasedNftTransactionOptions {
+export interface IIotaNftTransactionOptions {
 	/**
 	 * The owner address of the NFT.
 	 */

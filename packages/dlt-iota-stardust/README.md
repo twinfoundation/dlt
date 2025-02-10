@@ -1,11 +1,11 @@
-# TWIN DLT IOTA Rebased
+# TWIN DLT IOTA Stardust
 
-DLT helpers for use with IOTA Rebased.
+DLT helpers for use with IOTA Stardust.
 
 ## Installation
 
 ```shell
-npm install @twin.org/dlt-iota-rebased
+npm install @twin.org/dlt-iota-stardust
 ```
 
 ## Examples

@@ -5,13 +5,12 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	plugins: [NameOfPlugin],
-
 	test: {
 		include: ["./tests/**/*.spec.ts"],
 		globals: true,
-		bail: 1,
 		testTimeout: 300000,
 		hookTimeout: 300000,
+		bail: 1,
 		coverage: {
 			reporter: ["text", "lcov"],
 			include: ["src/**/*.ts"],

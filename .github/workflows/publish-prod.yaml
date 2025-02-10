@@ -9,7 +9,7 @@ on:
         type: choice
         options:
           - 'packages/dlt-iota'
-          - 'packages/dlt-iota-rebased'
+          - 'packages/dlt-iota-stardust'
           - 'apps/move-to-json'
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
       - name: Download IOTA CLI
         run: |
           cd ..
-          wget https://github.com/iotaledger/iota/releases/download/v0.9.0-alpha/iota-v0.9.0-alpha-linux-x86_64.tgz -O iota-cli.tgz
+          wget https://github.com/iotaledger/iota/releases/download/v0.9.2-beta/iota-v0.9.2-beta-linux-x86_64.tgz -O iota-cli.tgz
           tar xzf iota-cli.tgz
           chmod +x iota
           sudo mv iota /usr/local/bin/iota
@@ -60,7 +60,7 @@ jobs:
       - name: Download SUI CLI
         run: |
           cd ..
-          wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.40.3/sui-testnet-v1.40.3-ubuntu-x86_64.tgz -O sui-cli.tgz
+          wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.42.1/sui-testnet-v1.42.1-ubuntu-x86_64.tgz -O sui-cli.tgz
           tar xzf sui-cli.tgz
           chmod +x sui
           sudo mv sui /usr/local/bin/sui

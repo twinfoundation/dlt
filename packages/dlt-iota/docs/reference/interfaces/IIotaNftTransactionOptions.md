@@ -1,4 +1,4 @@
-# Interface: IIotaRebasedNftTransactionOptions
+# Interface: IIotaNftTransactionOptions
 
 Options for NFT transactions.
 
