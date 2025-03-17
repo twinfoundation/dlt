@@ -71,6 +71,104 @@ describe("Iota", () => {
 		expect(addresses[0]).toBeDefined();
 	});
 
+	test("can generate a key pair for specified index", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const keyPair = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 0);
+		expect(keyPair).toBeDefined();
+		expect(keyPair.privateKey).toBeInstanceOf(Uint8Array);
+		expect(keyPair.publicKey).toBeInstanceOf(Uint8Array);
+		expect(keyPair.privateKey.length).toBeGreaterThan(0);
+		expect(keyPair.publicKey.length).toBeGreaterThan(0);
+	});
+
+	test("generates different key pairs for different account indices", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const keyPair1 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 0);
+		const keyPair2 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 1, 0);
+		expect(keyPair1.privateKey).not.toEqual(keyPair2.privateKey);
+		expect(keyPair1.publicKey).not.toEqual(keyPair2.publicKey);
+	});
+
+	test("generates different key pairs for different address indices", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const keyPair1 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 0);
+		const keyPair2 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 1);
+		expect(keyPair1.privateKey).not.toEqual(keyPair2.privateKey);
+		expect(keyPair1.publicKey).not.toEqual(keyPair2.publicKey);
+	});
+
+	test("generates consistent key pairs for same parameters", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		const keyPair1 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 0);
+		const keyPair2 = Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, 0);
+		expect(keyPair1).toEqual(keyPair2);
+	});
+
+	test("throws error for invalid coin type", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		expect(() => Iota.getKeyPair(seed, Number.NaN, 0, 0)).toThrow(
+			expect.objectContaining({
+				name: "GuardError",
+				message: "guard.integer",
+				source: "Iota",
+				properties: {
+					property: "coinType",
+					value: Number.NaN,
+					options: undefined
+				},
+				inner: undefined
+			})
+		);
+	});
+
+	test("throws error for invalid account index", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		expect(() => Iota.getKeyPair(seed, TEST_COIN_TYPE, Number.NaN, 0)).toThrow(
+			expect.objectContaining({
+				name: "GuardError",
+				message: "guard.integer",
+				source: "Iota",
+				properties: {
+					property: "accountIndex",
+					value: Number.NaN,
+					options: undefined
+				},
+				inner: undefined
+			})
+		);
+	});
+
+	test("throws error for invalid address index", () => {
+		const mnemonic = Bip39.randomMnemonic();
+		const seed = Bip39.mnemonicToSeed(mnemonic);
+
+		expect(() => Iota.getKeyPair(seed, TEST_COIN_TYPE, 0, Number.NaN)).toThrow(
+			expect.objectContaining({
+				name: "GuardError",
+				message: "guard.integer",
+				source: "Iota",
+				properties: {
+					property: "addressIndex",
+					value: Number.NaN,
+					options: undefined
+				},
+				inner: undefined
+			})
+		);
+	});
+
 	test("can find an address with low range", () => {
 		const mnemonic = Bip39.randomMnemonic();
 		const seed = Bip39.mnemonicToSeed(mnemonic);
