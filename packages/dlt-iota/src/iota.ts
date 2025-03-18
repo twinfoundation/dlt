@@ -116,6 +116,41 @@ export class Iota {
 	}
 
 	/**
+	 * Get a key pair for the specified index.
+	 * @param seed The seed to use for generating the key pair.
+	 * @param coinType The coin type to use.
+	 * @param accountIndex The account index to get the key pair for.
+	 * @param addressIndex The address index to get the key pair for.
+	 * @param isInternal Whether the address is internal.
+	 * @returns The key pair containing private key and public key.
+	 */
+	public static getKeyPair(
+		seed: Uint8Array,
+		coinType: number,
+		accountIndex: number,
+		addressIndex: number,
+		isInternal?: boolean
+	): {
+		privateKey: Uint8Array;
+		publicKey: Uint8Array;
+	} {
+		Guards.integer(Iota._CLASS_NAME, nameof(coinType), coinType);
+		Guards.integer(Iota._CLASS_NAME, nameof(accountIndex), accountIndex);
+		Guards.integer(Iota._CLASS_NAME, nameof(addressIndex), addressIndex);
+
+		const keyPair = Bip44.keyPair(
+			seed,
+			KeyType.Ed25519,
+			coinType ?? Iota.DEFAULT_COIN_TYPE,
+			accountIndex,
+			isInternal ?? false,
+			addressIndex
+		);
+
+		return keyPair;
+	}
+
+	/**
 	 * Prepare and post a transaction.
 	 * @param config The configuration.
 	 * @param vaultConnector The vault connector.
