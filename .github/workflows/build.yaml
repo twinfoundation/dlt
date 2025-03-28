@@ -1,40 +1,43 @@
-name: Build, Lint, Test, Docs Next
+name: Build
 
 on:
+  workflow_dispatch:
   pull_request:
-    branches-ignore:
-      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  dist:
+  dist-all-packages:
     runs-on: ubuntu-latest
 
+    # Add env vars for tests
     env:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
+      TEST_2_MNEMONIC: ${{ secrets.TEST_2_MNEMONIC }}
+      TEST_NODE_MNEMONIC: ${{ secrets.TEST_NODE_MNEMONIC }}
 
     steps:
+      # Get the code
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Restore root node_modules from cache
-        id: node-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
-
+      # Install dependencies
       - name: Install dependencies
         run: npm ci
 
+      # Setup any services required for tests here
       - name: Download IOTA CLI
         run: |
           cd ..
-          wget https://github.com/iotaledger/iota/releases/download/v0.9.2-beta/iota-v0.9.2-beta-linux-x86_64.tgz -O iota-cli.tgz
+          wget https://github.com/iotaledger/iota/releases/download/v0.9.2-rc/iota-v0.9.2-rc-linux-x86_64.tgz -O iota-cli.tgz
           tar xzf iota-cli.tgz
           chmod +x iota
           sudo mv iota /usr/local/bin/iota
@@ -48,7 +51,8 @@ jobs:
           chmod +x sui
           sudo mv sui /usr/local/bin/sui
           sui --version
-
+      # End setup for tests
+      # Run Lint and Dist
       - name: Run Lint and Dist
         run: |
           npm run lint
