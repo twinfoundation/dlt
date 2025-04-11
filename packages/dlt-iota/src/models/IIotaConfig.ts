@@ -39,4 +39,10 @@ export interface IIotaConfig {
 	 * @default 1000
 	 */
 	maxAddressScanRange?: number;
+
+	/**
+	 * The length of time to wait for the inclusion of a transaction in seconds.
+	 * @default 60
+	 */
+	inclusionTimeoutSeconds?: number;
 }
