@@ -309,8 +309,10 @@ function getProjectRoot(moveFilePath: string): string {
  */
 async function verifyPlatformSDK(platform: string): Promise<void> {
 	try {
+		CLIDisplay.section(I18n.formatMessage("commands.move-to-json.section.checkingSdk"));
 		const cliApp = platform === PlatformTypes.Iota ? "iota" : "sui";
 		await CLIUtils.runShellApp(cliApp, ["--version"], process.cwd());
+		CLIDisplay.break();
 	} catch (err) {
 		throw new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform }, err);
 	}

@@ -35,6 +35,7 @@
 				"writingJsonFile": "Writing compiled modules JSON..."
 			},
 			"section": {
+				"checkingSdk": "Checking SDK Version",
 				"start": "Starting Move to JSON"
 			},
 			"labels": {
