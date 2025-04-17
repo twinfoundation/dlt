@@ -1,5 +1,12 @@
 # @twin.org/move-to-json - Changelog
 
+## [0.0.1-next.21](https://github.com/twinfoundation/dlt/compare/move-to-json-v0.0.1-next.20...move-to-json-v0.0.1-next.21) (2025-04-17)
+
+
+### Features
+
+* add header for CLI check ([#8](https://github.com/twinfoundation/dlt/issues/8)) ([0b9f271](https://github.com/twinfoundation/dlt/commit/0b9f2711fb3a9eb859e481725bfa1e2139e14053))
+
 ## [0.0.1-next.20](https://github.com/twinfoundation/dlt/compare/move-to-json-v0.0.1-next.19...move-to-json-v0.0.1-next.20) (2025-03-28)
 
 

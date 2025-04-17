@@ -1,5 +1,12 @@
 # @twin.org/dlt-iota-stardust - Changelog
 
+## [0.0.1-next.21](https://github.com/twinfoundation/dlt/compare/dlt-iota-stardust-v0.0.1-next.20...dlt-iota-stardust-v0.0.1-next.21) (2025-04-17)
+
+
+### Miscellaneous Chores
+
+* **dlt-iota-stardust:** Synchronize repo versions
+
 ## [0.0.1-next.20](https://github.com/twinfoundation/dlt/compare/dlt-iota-stardust-v0.0.1-next.19...dlt-iota-stardust-v0.0.1-next.20) (2025-03-28)
 
 
