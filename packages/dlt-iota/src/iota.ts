@@ -38,6 +38,11 @@ export class Iota {
 	public static readonly DEFAULT_SCAN_RANGE: number = 1000;
 
 	/**
+	 * Default inclusion timeout.
+	 */
+	public static readonly DEFAULT_INCLUSION_TIMEOUT: number = 60;
+
+	/**
 	 * Runtime name for the class.
 	 * @internal
 	 */
@@ -70,6 +75,7 @@ export class Iota {
 		config.vaultMnemonicId ??= Iota.DEFAULT_MNEMONIC_SECRET_NAME;
 		config.vaultSeedId ??= Iota.DEFAULT_SEED_SECRET_NAME;
 		config.coinType ??= Iota.DEFAULT_COIN_TYPE;
+		config.inclusionTimeoutSeconds ??= Iota.DEFAULT_INCLUSION_TIMEOUT;
 	}
 
 	/**
@@ -199,6 +205,12 @@ export class Iota {
 				}
 			});
 
+			await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
+				client,
+				result,
+				config
+			);
+
 			return { digest: result.digest };
 		} catch (error) {
 			throw new GeneralError(
@@ -247,13 +259,26 @@ export class Iota {
 				}
 			});
 
-			// Extract created object for mint operations
-			const createdObject = response.effects?.created?.[0]?.reference?.objectId
-				? { objectId: response.effects.created[0].reference.objectId }
+			// Wait for transaction to be indexed and available over API
+			const confirmedTransaction =
+				await Iota.waitForTransactionConfirmation<IIotaNftTransactionResponse>(
+					client,
+					response,
+					config,
+					{
+						showEffects: true,
+						showEvents: true,
+						showObjectChanges: true
+					}
+				);
+
+			// Extract created object for mint operations from the confirmed transaction
+			const createdObject = confirmedTransaction.effects?.created?.[0]?.reference?.objectId
+				? { objectId: confirmedTransaction.effects.created[0].reference.objectId }
 				: undefined;
 
 			return {
-				...response,
+				...confirmedTransaction,
 				createdObject
 			};
 		} catch (error) {
@@ -303,7 +328,16 @@ export class Iota {
 				}
 			});
 
-			return response;
+			return await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
+				client,
+				response,
+				config,
+				{
+					showEffects: true,
+					showEvents: true,
+					showObjectChanges: true
+				}
+			);
 		} catch (error) {
 			throw new GeneralError(
 				Iota._CLASS_NAME,
@@ -536,5 +570,40 @@ export class Iota {
 				Iota.extractPayloadError(error)
 			);
 		}
+	}
+
+	/**
+	 * Wait for a transaction to be indexed and available over the API.
+	 * @param client The IOTA client instance.
+	 * @param response The initial transaction response.
+	 * @param response.digest The digest of the transaction.
+	 * @param config The IOTA configuration.
+	 * @param options Additional options for the transaction query.
+	 * @param options.showEffects Whether to show effects.
+	 * @param options.showEvents Whether to show events.
+	 * @param options.showObjectChanges Whether to show object changes.
+	 * @returns The confirmed transaction response.
+	 */
+	private static async waitForTransactionConfirmation<T extends IotaTransactionBlockResponse>(
+		client: IotaClient,
+		response: { digest: string },
+		config: IIotaConfig,
+		options?: {
+			showEffects?: boolean;
+			showEvents?: boolean;
+			showObjectChanges?: boolean;
+		}
+	): Promise<T> {
+		const timeoutMs = (config.inclusionTimeoutSeconds ?? Iota.DEFAULT_INCLUSION_TIMEOUT) * 1000;
+
+		return client.waitForTransaction({
+			digest: response.digest,
+			timeout: timeoutMs,
+			options: {
+				showEffects: options?.showEffects ?? true,
+				showEvents: options?.showEvents ?? true,
+				showObjectChanges: options?.showObjectChanges ?? true
+			}
+		}) as Promise<T>;
 	}
 }

@@ -44,6 +44,14 @@ Default coin type.
 
 Default scan range.
 
+***
+
+### DEFAULT\_INCLUSION\_TIMEOUT
+
+> `readonly` `static` **DEFAULT\_INCLUSION\_TIMEOUT**: `number` = `60`
+
+Default inclusion timeout.
+
 ## Methods
 
 ### createClient()
