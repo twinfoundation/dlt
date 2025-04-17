@@ -4,13 +4,13 @@ Class for performing operations on IOTA.
 
 ## Constructors
 
-### new Iota()
+### Constructor
 
-> **new Iota**(): [`Iota`](Iota.md)
+> **new Iota**(): `Iota`
 
 #### Returns
 
-[`Iota`](Iota.md)
+`Iota`
 
 ## Properties
 
@@ -98,7 +98,7 @@ The configuration to populate.
 
 ### getAddresses()
 
-> `static` **getAddresses**(`seed`, `coinType`, `accountIndex`, `startAddressIndex`, `count`, `isInternal`?): `string`[]
+> `static` **getAddresses**(`seed`, `coinType`, `accountIndex`, `startAddressIndex`, `count`, `isInternal?`): `string`[]
 
 Get addresses for the identity.
 
@@ -150,7 +150,7 @@ The list of addresses.
 
 ### getKeyPair()
 
-> `static` **getKeyPair**(`seed`, `coinType`, `accountIndex`, `addressIndex`, `isInternal`?): `object`
+> `static` **getKeyPair**(`seed`, `coinType`, `accountIndex`, `addressIndex`, `isInternal?`): `object`
 
 Get a key pair for the specified index.
 
@@ -471,7 +471,7 @@ The extracted error.
 
 ### buildMnemonicKey()
 
-> `static` **buildMnemonicKey**(`identity`, `vaultMnemonicId`?): `string`
+> `static` **buildMnemonicKey**(`identity`, `vaultMnemonicId?`): `string`
 
 Get the key for storing the mnemonic.
 
@@ -499,7 +499,7 @@ The mnemonic key.
 
 ### buildSeedKey()
 
-> `static` **buildSeedKey**(`identity`, `vaultSeedId`?): `string`
+> `static` **buildSeedKey**(`identity`, `vaultSeedId?`): `string`
 
 Get the key for storing the seed.
 
