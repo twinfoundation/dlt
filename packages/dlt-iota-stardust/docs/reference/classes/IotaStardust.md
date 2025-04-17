@@ -174,7 +174,7 @@ The block id and block.
 
 ### getSeed()
 
-> `static` **getSeed**(`config`, `vaultConnector`, `identity`): `Promise`\<`Uint8Array`\>
+> `static` **getSeed**(`config`, `vaultConnector`, `identity`): `Promise`\<`Uint8Array`\<`ArrayBufferLike`\>\>
 
 Get the seed from the vault.
 
@@ -200,7 +200,7 @@ The identity of the user to access the vault keys.
 
 #### Returns
 
-`Promise`\<`Uint8Array`\>
+`Promise`\<`Uint8Array`\<`ArrayBufferLike`\>\>
 
 The seed.
 
