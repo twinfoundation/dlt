@@ -5,7 +5,6 @@ This mono-repository contains the packages to for use with DLTs in TWIN applicat
 ## Packages
 
 - [dlt-iota](packages/dlt-iota/README.md) - DLT helpers for use with IOTA.
-- [dlt-iota-stardust](packages/dlt-iota-stardust/README.md) - DLT helpers for use with IOTA Stardust.
 
 ## Apps
 

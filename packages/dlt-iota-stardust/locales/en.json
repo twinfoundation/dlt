@@ -1,8 +1,0 @@
-{
-	"error": {
-		"iotaStardust": {
-			"inclusionFailed": "The transaction generated was not included in a reasonable amount of time",
-			"insufficientFunds": "There were insufficient funds to complete the operation"
-		}
-	}
-}

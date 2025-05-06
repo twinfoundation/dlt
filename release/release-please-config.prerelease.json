@@ -14,11 +14,6 @@
 			"changelog-path": "docs/changelog.md",
 			"extra-files": ["src/index.ts"]
 		},
-		"packages/dlt-iota-stardust": {
-			"package-name": "dlt-iota-stardust",
-			"changelog-path": "docs/changelog.md",
-			"extra-files": ["src/index.ts"]
-		},
 		"apps/move-to-json": {
 			"package-name": "move-to-json",
 			"changelog-path": "docs/changelog.md",
@@ -30,7 +25,7 @@
 		{
 			"type": "linked-versions",
 			"groupName": "repo",
-			"components": ["dlt-iota", "dlt-iota-stardust", "move-to-json"]
+			"components": ["dlt-iota", "move-to-json"]
 		}
 	]
 }

@@ -30,7 +30,7 @@
 		"prepare": "ts-patch install -s"
 	},
 	"dependencies": {
-		"@iota/iota-sdk": "0.6.0",
+		"@iota/iota-sdk": "1.0.0",
 		"@twin.org/core": "next",
 		"@twin.org/crypto": "next",
 		"@twin.org/logging-models": "next",
