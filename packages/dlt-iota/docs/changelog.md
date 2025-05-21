@@ -1,5 +1,12 @@
 # @twin.org/dlt-iota - Changelog
 
+## [0.0.1-next.24](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.1-next.23...dlt-iota-v0.0.1-next.24) (2025-05-21)
+
+
+### Features
+
+* blend transaction methods ([#13](https://github.com/twinfoundation/dlt/issues/13)) ([763a93c](https://github.com/twinfoundation/dlt/commit/763a93cf30eaa3872ac56fa9cef512d58cdb0208))
+
 ## [0.0.1-next.23](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.1-next.22...dlt-iota-v0.0.1-next.23) (2025-05-06)
 
 
