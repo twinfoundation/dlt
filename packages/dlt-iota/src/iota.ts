@@ -261,17 +261,16 @@ export class Iota {
 
 			if (options?.waitForConfirmation ?? true) {
 				// Wait for transaction to be indexed and available over API
-				const confirmedTransaction =
-					await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
-						client,
-						response.digest,
-						config,
-						{
-							showEffects: options?.showEffects ?? true,
-							showEvents: options?.showEvents ?? true,
-							showObjectChanges: options?.showObjectChanges ?? true
-						}
-					);
+				const confirmedTransaction = await Iota.waitForTransactionConfirmation(
+					client,
+					response.digest,
+					config,
+					{
+						showEffects: options?.showEffects ?? true,
+						showEvents: options?.showEvents ?? true,
+						showObjectChanges: options?.showObjectChanges ?? true
+					}
+				);
 
 				return confirmedTransaction;
 			}
@@ -523,7 +522,7 @@ export class Iota {
 	 * @param options.showObjectChanges Whether to show object changes.
 	 * @returns The confirmed transaction response.
 	 */
-	public static async waitForTransactionConfirmation<T extends IotaTransactionBlockResponse>(
+	public static async waitForTransactionConfirmation(
 		client: IotaClient,
 		digest: string,
 		config: IIotaConfig,
@@ -532,7 +531,7 @@ export class Iota {
 			showEvents?: boolean;
 			showObjectChanges?: boolean;
 		}
-	): Promise<T> {
+	): Promise<IotaTransactionBlockResponse> {
 		const timeoutMs = (config.inclusionTimeoutSeconds ?? Iota.DEFAULT_INCLUSION_TIMEOUT) * 1000;
 
 		return client.waitForTransaction({
@@ -543,7 +542,7 @@ export class Iota {
 				showEvents: options?.showEvents ?? true,
 				showObjectChanges: options?.showObjectChanges ?? true
 			}
-		}) as Promise<T>;
+		});
 	}
 
 	/**
@@ -552,7 +551,7 @@ export class Iota {
 	 * @param code The error code to check for.
 	 * @returns True if the error is an abort error, false otherwise.
 	 */
-	public isAbortError(error: unknown, code?: number): boolean {
+	public static isAbortError(error: unknown, code?: number): boolean {
 		const err = BaseError.fromError(error);
 		if (Is.stringValue(err.properties?.error) && err.properties.error.startsWith("MoveAbort")) {
 			if (Is.number(code)) {

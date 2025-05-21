@@ -581,15 +581,9 @@ void.
 
 ### waitForTransactionConfirmation()
 
-> `static` **waitForTransactionConfirmation**\<`T`\>(`client`, `digest`, `config`, `options?`): `Promise`\<`T`\>
+> `static` **waitForTransactionConfirmation**(`client`, `digest`, `config`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
 
 Wait for a transaction to be indexed and available over the API.
-
-#### Type Parameters
-
-##### T
-
-`T` *extends* `IotaTransactionBlockResponse`
 
 #### Parameters
 
@@ -635,7 +629,7 @@ Whether to show object changes.
 
 #### Returns
 
-`Promise`\<`T`\>
+`Promise`\<`IotaTransactionBlockResponse`\>
 
 The confirmed transaction response.
 
@@ -643,7 +637,7 @@ The confirmed transaction response.
 
 ### isAbortError()
 
-> **isAbortError**(`error`, `code?`): `boolean`
+> `static` **isAbortError**(`error`, `code?`): `boolean`
 
 Check if the error is an abort error.
 
