@@ -3,15 +3,14 @@
 import { IotaClient, type IotaTransactionBlockResponse } from "@iota/iota-sdk/client";
 import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
-import { BaseError, Converter, GeneralError, Guards, type IError } from "@twin.org/core";
+import { BaseError, Converter, GeneralError, Guards, Is, type IError } from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import type { IIotaConfig } from "./models/IIotaConfig";
 import type { IIotaDryRun } from "./models/IIotaDryRun";
-import type { IIotaNftTransactionOptions } from "./models/IIotaNftTransactionOptions";
-import type { IIotaNftTransactionResponse } from "./models/IIotaNftTransactionResponse";
+import type { IIotaResponseOptions } from "./models/IIotaResponseOptions";
 
 /**
  * Class for performing operations on IOTA.
@@ -160,188 +159,128 @@ export class Iota {
 	 * Prepare and post a transaction.
 	 * @param config The configuration.
 	 * @param vaultConnector The vault connector.
+	 * @param loggingConnector The logging connector.
 	 * @param identity The identity of the user to access the vault keys.
 	 * @param client The client instance.
+	 * @param source The source address.
+	 * @param amount The amount to transfer.
+	 * @param recipient The recipient address.
 	 * @param options The transaction options.
-	 * @param options.source The source address.
-	 * @param options.amount The amount to transfer.
-	 * @param options.recipient The recipient address.
 	 * @returns The transaction result.
+	 */
+	public static async prepareAndPostValueTransaction(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		loggingConnector: ILoggingConnector | undefined,
+		identity: string,
+		client: IotaClient,
+		source: string,
+		amount: bigint,
+		recipient: string,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		try {
+			const txb = new Transaction();
+			const [coin] = txb.splitCoins(txb.gas, [txb.pure.u64(amount)]);
+			txb.transferObjects([coin], txb.pure.address(recipient));
+
+			const result = await this.prepareAndPostTransaction(
+				config,
+				vaultConnector,
+				loggingConnector,
+				identity,
+				client,
+				source,
+				txb,
+				options
+			);
+			return result;
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"valueTransactionFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Prepare and post a transaction.
+	 * @param config The configuration.
+	 * @param vaultConnector The vault connector.
+	 * @param loggingConnector The logging connector.
+	 * @param identity The identity of the user to access the vault keys.
+	 * @param client The client instance.
+	 * @param owner The owner of the address.
+	 * @param transaction The transaction to execute.
+	 * @param options The transaction options.
+	 * @returns The transaction response.
 	 */
 	public static async prepareAndPostTransaction(
 		config: IIotaConfig,
 		vaultConnector: IVaultConnector,
+		loggingConnector: ILoggingConnector | undefined,
 		identity: string,
 		client: IotaClient,
-		options: {
-			source: string;
-			amount: bigint;
-			recipient: string;
+		owner: string,
+		transaction: Transaction,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		// Dry run the transaction if cost logging is enabled to get the gas and storage costs
+		if (Is.stringValue(options?.dryRunLabel)) {
+			await Iota.dryRunTransaction(
+				client,
+				loggingConnector,
+				transaction,
+				owner,
+				options.dryRunLabel
+			);
 		}
-	): Promise<{ digest: string }> {
-		const seed = await this.getSeed(config, vaultConnector, identity);
 
+		const seed = await this.getSeed(config, vaultConnector, identity);
 		const addressKeyPair = Iota.findAddress(
 			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
 			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
 			seed,
-			options.source
+			owner
 		);
 		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 
-		const txb = new Transaction();
-		const [coin] = txb.splitCoins(txb.gas, [txb.pure.u64(options.amount)]);
-		txb.transferObjects([coin], txb.pure.address(options.recipient));
-
 		try {
-			const result = await client.signAndExecuteTransaction({
-				transaction: txb,
+			const response = await client.signAndExecuteTransaction({
+				transaction,
 				signer: keypair,
 				requestType: "WaitForLocalExecution",
 				options: {
-					showEffects: true,
-					showEvents: true,
-					showObjectChanges: true
+					showEffects: options?.showEffects ?? true,
+					showEvents: options?.showEvents ?? true,
+					showObjectChanges: options?.showObjectChanges ?? true
 				}
 			});
 
-			await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
-				client,
-				result,
-				config
-			);
+			if (options?.waitForConfirmation ?? true) {
+				// Wait for transaction to be indexed and available over API
+				const confirmedTransaction =
+					await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
+						client,
+						response.digest,
+						config,
+						{
+							showEffects: options?.showEffects ?? true,
+							showEvents: options?.showEvents ?? true,
+							showObjectChanges: options?.showObjectChanges ?? true
+						}
+					);
 
-			return { digest: result.digest };
+				return confirmedTransaction;
+			}
+
+			return response;
 		} catch (error) {
 			throw new GeneralError(
 				Iota._CLASS_NAME,
 				"transactionFailed",
-				undefined,
-				Iota.extractPayloadError(error)
-			);
-		}
-	}
-
-	/**
-	 * Prepare and post an NFT transaction.
-	 * @param config The configuration.
-	 * @param vaultConnector The vault connector.
-	 * @param identity The identity of the user to access the vault keys.
-	 * @param client The client instance.
-	 * @param options The NFT transaction options.
-	 * @returns The transaction response.
-	 */
-	public static async prepareAndPostNftTransaction(
-		config: IIotaConfig,
-		vaultConnector: IVaultConnector,
-		identity: string,
-		client: IotaClient,
-		options: IIotaNftTransactionOptions
-	): Promise<IIotaNftTransactionResponse> {
-		const seed = await this.getSeed(config, vaultConnector, identity);
-		const addressKeyPair = Iota.findAddress(
-			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
-			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
-			seed,
-			options.owner
-		);
-		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
-
-		try {
-			const response = await client.signAndExecuteTransaction({
-				transaction: options.transaction,
-				signer: keypair,
-				requestType: "WaitForLocalExecution",
-				options: {
-					showEffects: options.showEffects ?? true,
-					showEvents: options.showEvents ?? true,
-					showObjectChanges: options.showObjectChanges ?? true
-				}
-			});
-
-			// Wait for transaction to be indexed and available over API
-			const confirmedTransaction =
-				await Iota.waitForTransactionConfirmation<IIotaNftTransactionResponse>(
-					client,
-					response,
-					config,
-					{
-						showEffects: true,
-						showEvents: true,
-						showObjectChanges: true
-					}
-				);
-
-			// Extract created object for mint operations from the confirmed transaction
-			const createdObject = confirmedTransaction.effects?.created?.[0]?.reference?.objectId
-				? { objectId: confirmedTransaction.effects.created[0].reference.objectId }
-				: undefined;
-
-			return {
-				...confirmedTransaction,
-				createdObject
-			};
-		} catch (error) {
-			throw new GeneralError(
-				Iota._CLASS_NAME,
-				"nftTransactionFailed",
-				undefined,
-				Iota.extractPayloadError(error)
-			);
-		}
-	}
-
-	/**
-	 * Prepare and post a storage transaction.
-	 * @param config The configuration.
-	 * @param vaultConnector The vault connector.
-	 * @param identity The identity of the user to access the vault keys.
-	 * @param client The client instance.
-	 * @param options The storage transaction options.
-	 * @returns The transaction response.
-	 */
-	public static async prepareAndPostStorageTransaction(
-		config: IIotaConfig,
-		vaultConnector: IVaultConnector,
-		identity: string,
-		client: IotaClient,
-		options: IIotaNftTransactionOptions
-	): Promise<IotaTransactionBlockResponse> {
-		const seed = await this.getSeed(config, vaultConnector, identity);
-		const addressKeyPair = Iota.findAddress(
-			config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
-			config.coinType ?? Iota.DEFAULT_COIN_TYPE,
-			seed,
-			options.owner
-		);
-		const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
-
-		try {
-			const response = await client.signAndExecuteTransaction({
-				transaction: options.transaction,
-				signer: keypair,
-				requestType: "WaitForLocalExecution",
-				options: {
-					showEffects: options.showEffects ?? true,
-					showEvents: options.showEvents ?? true,
-					showObjectChanges: options.showObjectChanges ?? true
-				}
-			});
-
-			return await Iota.waitForTransactionConfirmation<IotaTransactionBlockResponse>(
-				client,
-				response,
-				config,
-				{
-					showEffects: true,
-					showEvents: true,
-					showObjectChanges: true
-				}
-			);
-		} catch (error) {
-			throw new GeneralError(
-				Iota._CLASS_NAME,
-				"storageTransactionFailed",
 				undefined,
 				Iota.extractPayloadError(error)
 			);
@@ -502,7 +441,6 @@ export class Iota {
 	 * Dry run a transaction and log the results.
 	 * @param client The IOTA client.
 	 * @param logging The logging connector.
-	 * @param className The class name for logging.
 	 * @param txb The transaction to dry run.
 	 * @param sender The sender address.
 	 * @param operation The operation to log.
@@ -511,7 +449,6 @@ export class Iota {
 	public static async dryRunTransaction(
 		client: IotaClient,
 		logging: ILoggingConnector | undefined,
-		className: string,
 		txb: Transaction,
 		sender: string,
 		operation: string
@@ -551,7 +488,7 @@ export class Iota {
 			if (logging) {
 				await logging.log({
 					level: "info",
-					source: className,
+					source: Iota._CLASS_NAME,
 					ts: Date.now(),
 					message: "transactionCosts",
 					data: {
@@ -563,6 +500,9 @@ export class Iota {
 
 			return result;
 		} catch (error) {
+			if (error instanceof GeneralError) {
+				throw error;
+			}
 			throw new GeneralError(
 				Iota._CLASS_NAME,
 				"dryRunFailed",
@@ -575,8 +515,7 @@ export class Iota {
 	/**
 	 * Wait for a transaction to be indexed and available over the API.
 	 * @param client The IOTA client instance.
-	 * @param response The initial transaction response.
-	 * @param response.digest The digest of the transaction.
+	 * @param digest The digest of the transaction to wait for.
 	 * @param config The IOTA configuration.
 	 * @param options Additional options for the transaction query.
 	 * @param options.showEffects Whether to show effects.
@@ -584,9 +523,9 @@ export class Iota {
 	 * @param options.showObjectChanges Whether to show object changes.
 	 * @returns The confirmed transaction response.
 	 */
-	private static async waitForTransactionConfirmation<T extends IotaTransactionBlockResponse>(
+	public static async waitForTransactionConfirmation<T extends IotaTransactionBlockResponse>(
 		client: IotaClient,
-		response: { digest: string },
+		digest: string,
 		config: IIotaConfig,
 		options?: {
 			showEffects?: boolean;
@@ -597,7 +536,7 @@ export class Iota {
 		const timeoutMs = (config.inclusionTimeoutSeconds ?? Iota.DEFAULT_INCLUSION_TIMEOUT) * 1000;
 
 		return client.waitForTransaction({
-			digest: response.digest,
+			digest,
 			timeout: timeoutMs,
 			options: {
 				showEffects: options?.showEffects ?? true,
@@ -605,5 +544,22 @@ export class Iota {
 				showObjectChanges: options?.showObjectChanges ?? true
 			}
 		}) as Promise<T>;
+	}
+
+	/**
+	 * Check if the error is an abort error.
+	 * @param error The error to check.
+	 * @param code The error code to check for.
+	 * @returns True if the error is an abort error, false otherwise.
+	 */
+	public isAbortError(error: unknown, code?: number): boolean {
+		const err = BaseError.fromError(error);
+		if (Is.stringValue(err.properties?.error) && err.properties.error.startsWith("MoveAbort")) {
+			if (Is.number(code)) {
+				return err.properties.error.includes(code.toString());
+			}
+			return true;
+		}
+		return false;
 	}
 }
