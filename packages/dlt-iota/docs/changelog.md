@@ -1,5 +1,12 @@
 # @twin.org/dlt-iota - Changelog
 
+## [0.0.1-next.25](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.1-next.24...dlt-iota-v0.0.1-next.25) (2025-05-21)
+
+
+### Bug Fixes
+
+* isAbortError static method ([2544c92](https://github.com/twinfoundation/dlt/commit/2544c926a5f0c4505e9f2c23d4380ced368f8470))
+
 ## [0.0.1-next.24](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.1-next.23...dlt-iota-v0.0.1-next.24) (2025-05-21)
 
 
