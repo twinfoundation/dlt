@@ -1,5 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
+import { toB64 } from "@iota/bcs";
 import { IotaClient, type IotaTransactionBlockResponse } from "@iota/iota-sdk/client";
 import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
@@ -8,6 +9,7 @@ import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
+import type { IGasReservationResult } from "./models/IGasReservationResult";
 import type { IIotaConfig } from "./models/IIotaConfig";
 import type { IIotaDryRun } from "./models/IIotaDryRun";
 import type { IIotaResponseOptions } from "./models/IIotaResponseOptions";
@@ -184,6 +186,18 @@ export class Iota {
 			const [coin] = txb.splitCoins(txb.gas, [txb.pure.u64(amount)]);
 			txb.transferObjects([coin], txb.pure.address(recipient));
 
+			// Check if gas station configuration is present
+			if (config.gasStation) {
+				return await this.prepareAndPostGasStationTransaction(
+					config,
+					vaultConnector,
+					identity,
+					client,
+					source,
+					txb
+				);
+			}
+
 			const result = await this.prepareAndPostTransaction(
 				config,
 				vaultConnector,
@@ -227,6 +241,19 @@ export class Iota {
 		transaction: Transaction,
 		options?: IIotaResponseOptions
 	): Promise<IotaTransactionBlockResponse> {
+		// Check if gas station configuration is present
+		if (config.gasStation) {
+			return this.prepareAndPostGasStationTransaction(
+				config,
+				vaultConnector,
+				identity,
+				client,
+				owner,
+				transaction
+			);
+		}
+
+		// Traditional transaction flow
 		// Dry run the transaction if cost logging is enabled to get the gas and storage costs
 		if (Is.stringValue(options?.dryRunLabel)) {
 			await Iota.dryRunTransaction(
@@ -560,5 +587,162 @@ export class Iota {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Prepare and post a transaction using gas station sponsoring.
+	 * @param config The configuration.
+	 * @param vaultConnector The vault connector.
+	 * @param identity The identity of the user to access the vault keys.
+	 * @param client The client instance.
+	 * @param owner The owner of the address.
+	 * @param transaction The transaction to execute.
+	 * @returns The transaction response.
+	 */
+	public static async prepareAndPostGasStationTransaction(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		identity: string,
+		client: IotaClient,
+		owner: string,
+		transaction: Transaction
+	): Promise<IotaTransactionBlockResponse> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+
+		try {
+			// Reserve gas from the gas station
+			const gasBudget = config.gasBudget ?? 50000000;
+			const gasReservation = await this.reserveGas(config, gasBudget);
+
+			// Set transaction parameters for sponsoring
+			transaction.setSender(owner);
+			transaction.setGasOwner(gasReservation.sponsor_address);
+			transaction.setGasPayment(gasReservation.gas_coins);
+			transaction.setGasBudget(gasBudget);
+
+			// Build and sign transaction
+			const unsignedTxBytes = await transaction.build({ client });
+
+			// Sign the transaction with the user's private key
+			const seed = await this.getSeed(config, vaultConnector, identity);
+			const addressKeyPair = Iota.findAddress(
+				config.maxAddressScanRange ?? Iota.DEFAULT_SCAN_RANGE,
+				config.coinType ?? Iota.DEFAULT_COIN_TYPE,
+				seed,
+				owner
+			);
+			const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
+			const signature = await keypair.signTransaction(unsignedTxBytes);
+
+			// Submit to gas station for co-signing and execution
+			return await this.executeGasStationTransaction(
+				config,
+				gasReservation.reservation_id,
+				unsignedTxBytes,
+				signature.signature
+			);
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"gasStationTransactionFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Reserve gas from the gas station.
+	 * @param config The configuration containing gas station settings.
+	 * @param gasBudget The gas budget to reserve.
+	 * @returns The gas reservation result.
+	 */
+	public static async reserveGas(
+		config: IIotaConfig,
+		gasBudget: number
+	): Promise<IGasReservationResult> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+
+		const requestData = {
+			// eslint-disable-next-line camelcase
+			gas_budget: gasBudget,
+			// eslint-disable-next-line camelcase
+			reserve_duration_secs: 30
+		};
+
+		const response = await fetch(`${config.gasStation.gasStationUrl}/v1/reserve_gas`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
+			},
+			body: JSON.stringify(requestData)
+		});
+
+		if (!response.ok) {
+			throw new GeneralError(this._CLASS_NAME, "gasReservationFailed", {
+				status: response.status,
+				statusText: response.statusText
+			});
+		}
+
+		const result = await response.json();
+		return result.result;
+	}
+
+	/**
+	 * Execute a sponsored transaction through the gas station.
+	 * @param config The configuration containing gas station settings.
+	 * @param reservationId The reservation ID from gas reservation.
+	 * @param transactionBytes The unsigned transaction bytes.
+	 * @param userSignature The user's signature.
+	 * @returns The transaction response.
+	 */
+	public static async executeGasStationTransaction(
+		config: IIotaConfig,
+		reservationId: number,
+		transactionBytes: Uint8Array,
+		userSignature: string
+	): Promise<IotaTransactionBlockResponse> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+
+		const requestData = {
+			// eslint-disable-next-line camelcase
+			reservation_id: reservationId,
+			// eslint-disable-next-line camelcase
+			tx_bytes: toB64(transactionBytes),
+			// eslint-disable-next-line camelcase
+			user_sig: userSignature
+		};
+
+		const response = await fetch(`${config.gasStation.gasStationUrl}/v1/execute_tx`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
+			},
+			body: JSON.stringify(requestData)
+		});
+
+		if (!response.ok) {
+			throw new GeneralError(this._CLASS_NAME, "gasStationExecutionFailed", {
+				status: response.status,
+				statusText: response.statusText
+			});
+		}
+
+		const result = await response.json();
+
+		// Gas station might return either effects directly or wrapped response
+		const effectsData = result.effects || result;
+
+		// Transform gas station response to match IotaTransactionBlockResponse format
+		return {
+			digest: effectsData.transactionDigest,
+			effects: effectsData,
+			events: [],
+			objectChanges: [],
+			confirmedLocalExecution: true
+		} as IotaTransactionBlockResponse;
 	}
 }

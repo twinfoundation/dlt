@@ -1,6 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import type { IotaClientOptions } from "@iota/iota-sdk/client";
+import type { IGasStationConfig } from "./IGasStationConfig";
 
 /**
  * Configuration for IOTA.
@@ -45,4 +46,16 @@ export interface IIotaConfig {
 	 * @default 60
 	 */
 	inclusionTimeoutSeconds?: number;
+
+	/**
+	 * Gas station configuration for sponsored transactions.
+	 * If provided, transactions will be processed through the gas station.
+	 */
+	gasStation?: IGasStationConfig;
+
+	/**
+	 * The default gas budget for all transactions (including sponsored and direct).
+	 * @default 50000000
+	 */
+	gasBudget?: number;
 }
