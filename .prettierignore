@@ -2,3 +2,6 @@ package-lock.json
 **/docs/reference
 **/docs/open-api
 changelog.md
+
+# Gas station config file, self created for testing in github actions
+gas-station-config.yaml

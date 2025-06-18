@@ -16,6 +16,7 @@ jobs:
     env:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
       TEST_NODE_ENDPOINT: https://api.testnet.iota.cafe
+      TEST_FAUCET_ENDPOINT: https://faucet.testnet.iota.cafe/gas
       TEST_NETWORK: testnet
 
     steps:
@@ -71,7 +72,7 @@ jobs:
           storage-config:
             redis:
               redis_url: "redis://127.0.0.1:6379"
-          fullnode-url: "https://api.testnet.iota.cafe"
+          fullnode-url: "${TEST_NODE_ENDPOINT}"
           coin-init-config:
             target-init-balance: 100000000
             refresh-interval-sec: 86400
@@ -119,9 +120,9 @@ jobs:
           if [ "$SPONSOR_ADDRESS" != "null" ] && [ -n "$SPONSOR_ADDRESS" ]; then
             echo "Funding sponsor address with IOTA faucet..."
             # Fund the sponsor address using IOTA testnet faucet
-            curl -X POST "https://faucet.testnet.iota.cafe/api/enqueue" \
+            curl -X POST "$TEST_FAUCET_ENDPOINT" \
               -H "Content-Type: application/json" \
-              -d "{\"address\":\"$SPONSOR_ADDRESS\"}" || echo "Faucet funding may have failed, but continuing..."
+              -d "{\"FixedAmountRequest\":{\"recipient\":\"$SPONSOR_ADDRESS\"}}" || echo "Faucet funding may have failed, but continuing..."
             
             echo "Waiting 10 seconds for funding to process..."
             sleep 10
@@ -143,9 +144,8 @@ jobs:
             echo "Failed to get sponsor address, but continuing..."
           fi
       # End setup for tests
-      # Run Format, Lint and Dist
-      - name: Run Format, Lint and Dist
+      # Run Lint and Dist
+      - name: Run Lint and Dist
         run: |
-          npm run format
           npm run lint
           npm run dist
