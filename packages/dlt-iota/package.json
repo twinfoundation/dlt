@@ -37,7 +37,7 @@
 		"@twin.org/logging-models": "next",
 		"@twin.org/nameof": "next",
 		"@twin.org/vault-models": "next",
-		"@twin.org/web": "^0.0.1-next.62"
+		"@twin.org/web": "next"
 	},
 	"devDependencies": {
 		"@twin.org/entity": "next",

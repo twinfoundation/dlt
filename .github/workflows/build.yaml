@@ -148,8 +148,9 @@ jobs:
             echo "Failed to get sponsor address, but continuing..."
           fi
       # End setup for tests
-      # Run Lint and Dist
-      - name: Run Lint and Dist
+      # Run Format, Lint and Dist
+      - name: Run Format, Lint and Dist
         run: |
+          npm run format
           npm run lint
           npm run dist
