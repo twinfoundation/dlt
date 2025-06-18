@@ -1,0 +1,139 @@
+name: 'Setup DLT Testing Environment'
+description: 'Sets up Redis, IOTA CLI, SUI CLI, and Gas Station with proper configuration for DLT testing'
+
+inputs:
+  test-mnemonic:
+    description: 'Test mnemonic for gas station'
+    required: true
+  test-node-endpoint:
+    description: 'IOTA testnet node endpoint'
+    required: false
+    default: 'https://api.testnet.iota.cafe'
+  test-faucet-endpoint:
+    description: 'IOTA testnet faucet endpoint'
+    required: false
+    default: 'https://faucet.testnet.iota.cafe/gas'
+  gas-station-auth:
+    description: 'Gas station authentication token'
+    required: true
+
+outputs:
+  gas-station-url:
+    description: 'Gas station URL for tests'
+    value: 'http://localhost:9527'
+  redis-url:
+    description: 'Redis URL for tests'
+    value: 'redis://127.0.0.1:6379'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download IOTA CLI
+      shell: bash
+      run: |
+        cd ..
+        wget https://github.com/iotaledger/iota/releases/download/v1.0.0/iota-v1.0.0-linux-x86_64.tgz -O iota-cli.tgz
+        tar xzf iota-cli.tgz
+        rm iota-cli.tgz
+        chmod +x iota
+        sudo mv iota /usr/local/bin/iota
+        iota --version
+
+    - name: Download SUI CLI
+      shell: bash
+      run: |
+        cd ..
+        wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.47.0/sui-testnet-v1.47.0-ubuntu-x86_64.tgz -O sui-cli.tgz
+        tar xzf sui-cli.tgz
+        rm sui-cli.tgz
+        chmod +x sui
+        sudo mv sui /usr/local/bin/sui
+        sui --version
+
+    - name: Start Redis
+      shell: bash
+      run: |
+        docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+    - name: Create gas station config
+      shell: bash
+      run: |
+        cat > gas-station-config.yaml << EOF
+        signer-config:
+          local:
+            keypair: AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f
+        rpc-host-ip: 0.0.0.0
+        rpc-port: 9527
+        metrics-port: 9184
+        storage-config:
+          redis:
+            redis_url: "redis://127.0.0.1:6379"
+        fullnode-url: "${{ inputs.test-node-endpoint }}"
+        coin-init-config:
+          target-init-balance: 100000000
+          refresh-interval-sec: 86400
+        daily-gas-usage-cap: 1500000000000
+        access-controller:
+          access-policy: disabled
+        EOF
+
+    - name: Start IOTA Gas Station
+      shell: bash
+      run: |
+        docker run -d --name gas-station \
+          -p 9527:9527 -p 9184:9184 \
+          -v $(pwd)/gas-station-config.yaml:/config/config.yaml \
+          --network host \
+          -e GAS_STATION_AUTH=${{ inputs.gas-station-auth }} \
+          iotaledger/gas-station:latest \
+          --config-path /config/config.yaml
+
+    - name: Wait for Gas Station
+      shell: bash
+      run: |
+        echo "Waiting for gas station to start..."
+        for i in {1..30}; do
+          if curl -f http://localhost:9527/ 2>/dev/null; then
+            echo "Gas station is ready!"
+            break
+          fi
+          echo "Attempt $i: Gas station not ready yet, waiting..."
+          sleep 5
+        done
+
+    - name: Fund Gas Station Sponsor
+      shell: bash
+      run: |
+        echo "Getting sponsor address from gas station..."
+        SPONSOR_RESPONSE=$(curl -s -X POST http://localhost:9527/v1/reserve_gas \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ inputs.gas-station-auth }}" \
+          -d '{"gas_budget": 10000000, "reserve_duration_secs": 10}')
+
+        SPONSOR_ADDRESS=$(echo "$SPONSOR_RESPONSE" | jq -r '.result.sponsor_address')
+        echo "Sponsor address: $SPONSOR_ADDRESS"
+
+        if [ "$SPONSOR_ADDRESS" != "null" ] && [ -n "$SPONSOR_ADDRESS" ]; then
+          echo "Funding sponsor address with IOTA faucet..."
+          curl -X POST "${{ inputs.test-faucet-endpoint }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"FixedAmountRequest\":{\"recipient\":\"$SPONSOR_ADDRESS\"}}" || echo "Faucet funding may have failed, but continuing..."
+          
+          echo "Waiting 10 seconds for funding to process..."
+          sleep 10
+          
+          echo "Verifying gas station can reserve gas after funding..."
+          TEST_RESPONSE=$(curl -s -X POST http://localhost:9527/v1/reserve_gas \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ inputs.gas-station-auth }}" \
+            -d '{"gas_budget": 50000000, "reserve_duration_secs": 30}')
+          
+          if echo "$TEST_RESPONSE" | jq -e '.result' > /dev/null; then
+            echo "✅ Gas station successfully funded and operational!"
+          else
+            echo "⚠️ Gas station may not be properly funded, but continuing..."
+            echo "Response: $TEST_RESPONSE"
+          fi
+        else
+          echo "Failed to get sponsor address, but continuing..."
+        fi
