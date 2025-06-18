@@ -6,7 +6,10 @@
 			"packageObjectError": "Failed to fetch the package object \"{packageId}\"",
 			"valueTransactionFailed": "The value transaction failed",
 			"transactionFailed": "The transaction failed",
-			"addressNotFound": "The address is missing could not be found from the seed \"{address}\""
+			"addressNotFound": "The address is missing could not be found from the seed \"{address}\"",
+			"gasStationTransactionFailed": "The gas station transaction failed",
+			"gasReservationFailed": "The gas reservation failed",
+			"gasStationExecutionFailed": "The gas station execution failed"
 		}
 	}
 }
