@@ -67,6 +67,9 @@ jobs:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
       TEST_2_MNEMONIC: ${{ secrets.TEST_2_MNEMONIC }}
       TEST_NODE_MNEMONIC: ${{ secrets.TEST_NODE_MNEMONIC }}
+      TEST_NODE_ENDPOINT: https://api.testnet.iota.cafe
+      TEST_FAUCET_ENDPOINT: https://faucet.testnet.iota.cafe/gas
+      TEST_NETWORK: testnet
 
     # Use a matrix strategy to process each package pattern in parallel
     # but limit to one at a time for controlled publishing order
@@ -89,27 +92,14 @@ jobs:
           node-version: 20 # Use Node.js 20.x
           registry-url: 'https://registry.npmjs.org' # Set NPM registry URL
 
-      # Setup any services required for tests here
-      - name: Download IOTA CLI
-        run: |
-          cd ..
-          wget https://github.com/iotaledger/iota/releases/download/v1.0.0/iota-v1.0.0-linux-x86_64.tgz -O iota-cli.tgz
-          tar xzf iota-cli.tgz
-          rm iota-cli.tgz
-          chmod +x iota
-          sudo mv iota /usr/local/bin/iota
-          iota --version
-
-      - name: Download SUI CLI
-        run: |
-          cd ..
-          wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.44.2/sui-testnet-v1.44.2-ubuntu-x86_64.tgz -O sui-cli.tgz
-          tar xzf sui-cli.tgz
-          rm sui-cli.tgz
-          chmod +x sui
-          sudo mv sui /usr/local/bin/sui
-          sui --version
-      # End setup for tests
+      # Setup IOTA infrastructure for tests using composite action
+      - name: Setup DLT Testing Environment
+        uses: ./.github/workflows/composites
+        with:
+          test-mnemonic: ${{ secrets.TEST_MNEMONIC }}
+          test-node-endpoint: ${{ env.TEST_NODE_ENDPOINT }}
+          test-faucet-endpoint: ${{ env.TEST_FAUCET_ENDPOINT }}
+          gas-station-auth: 'qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI='
       # Remove the root package.json to prevent dependency conflicts
       - name: Remove Mono-Repo Node Modules
         run: |
