@@ -34,11 +34,6 @@ describe("Iota Gas Station Integration", () => {
 		}
 	};
 
-	const configWithoutGasStation: IIotaConfig = {
-		clientOptions: TEST_CLIENT_OPTIONS,
-		network: TEST_NETWORK
-	};
-
 	beforeAll(async () => {
 		// Initialize entity storage schema
 		initSchema();
@@ -105,192 +100,67 @@ describe("Iota Gas Station Integration", () => {
 		});
 	});
 
-	// Live Integration Tests
 	describe("Live Integration (requires running gas station)", () => {
-		/**
-		 * Test 1: Check if gas station is running and accessible
-		 */
 		test("Should connect to running gas station", async () => {
-			console.log("🔍 Testing gas station connectivity...");
+			const response = await fetch(GAS_STATION_URL, {
+				method: "GET"
+			});
 
-			try {
-				const response = await fetch(GAS_STATION_URL, {
-					method: "GET"
-				});
+			expect(response.ok).toBe(true);
+		});
 
-				console.log(`📡 Gas station status: ${response.status}`);
-				expect(response.ok).toBe(true);
-			} catch (error) {
-				console.error("❌ Gas station not accessible:", error);
-				expect(true).toBe(false); // This will fail and show the error
-			}
-		}, 10000);
-
-		/**
-		 * Test 2: Test gas reservation and examine response format
-		 */
 		test("Should reserve gas and examine response format", async () => {
-			console.log("🚀 Testing gas reservation...");
+			const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
 
-			try {
-				const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
+			// Examine the structure
+			expect(gasReservation).toHaveProperty("sponsor_address");
+			expect(gasReservation).toHaveProperty("reservation_id");
+			expect(gasReservation).toHaveProperty("gas_coins");
+			expect(typeof gasReservation.sponsor_address).toBe("string");
+			expect(typeof gasReservation.reservation_id).toBe("number");
+			expect(Array.isArray(gasReservation.gas_coins)).toBe(true);
+		});
 
-				console.log("✅ Gas reservation successful:");
-				console.log("📋 Full response structure:", JSON.stringify(gasReservation, null, 2));
-
-				// Examine the structure
-				expect(gasReservation).toHaveProperty("sponsor_address");
-				expect(gasReservation).toHaveProperty("reservation_id");
-				expect(gasReservation).toHaveProperty("gas_coins");
-				expect(typeof gasReservation.sponsor_address).toBe("string");
-				expect(typeof gasReservation.reservation_id).toBe("number");
-				expect(Array.isArray(gasReservation.gas_coins)).toBe(true);
-
-				console.log(`📍 Sponsor address: ${gasReservation.sponsor_address}`);
-				console.log(`🔢 Reservation ID: ${gasReservation.reservation_id}`);
-				console.log(`⛽ Gas coins count: ${gasReservation.gas_coins.length}`);
-			} catch (error) {
-				console.error("❌ Gas reservation failed:", error);
-				throw error;
-			}
-		}, 15000);
-
-		/**
-		 * Test 3: Create a simple transaction and examine gas station execution response
-		 */
 		test("Should execute transaction via gas station and examine response format", async () => {
-			console.log("🔨 Testing full gas station transaction execution...");
+			const client = Iota.createClient(gasStationConfig);
+			const vaultConnector = VaultConnectorFactory.get("vault");
 
-			try {
-				// Get client and vault
-				const client = Iota.createClient(gasStationConfig);
-				const vaultConnector = VaultConnectorFactory.get("vault");
+			const seed = await Iota.getSeed(gasStationConfig, vaultConnector, TEST_IDENTITY);
+			const addresses = Iota.getAddresses(seed, Iota.DEFAULT_COIN_TYPE, 0, 0, 1, false);
+			const userAddress = addresses[0];
 
-				// Get user address
-				const seed = await Iota.getSeed(gasStationConfig, vaultConnector, TEST_IDENTITY);
-				const addresses = Iota.getAddresses(seed, Iota.DEFAULT_COIN_TYPE, 0, 0, 1, false);
-				const userAddress = addresses[0];
+			// Reserve gas
+			const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
 
-				console.log(`👤 User address: ${userAddress}`);
+			// Create a simple transaction
+			const tx = new Transaction();
+			tx.moveCall({
+				target: "0x2::clock::timestamp_ms",
+				arguments: [tx.object("0x6")]
+			});
 
-				// Reserve gas
-				const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
-				console.log(`⛽ Reserved gas with ID: ${gasReservation.reservation_id}`);
+			// Set gas station parameters
+			tx.setSender(userAddress);
+			tx.setGasOwner(gasReservation.sponsor_address);
+			tx.setGasPayment(gasReservation.gas_coins);
+			tx.setGasBudget(GAS_BUDGET);
 
-				// Create a simple transaction
-				const tx = new Transaction();
-				tx.moveCall({
-					target: "0x2::clock::timestamp_ms",
-					arguments: [tx.object("0x6")]
-				});
+			// Build and sign
+			const unsignedTxBytes = await tx.build({ client });
+			const keyPair = Iota.getKeyPair(seed, Iota.DEFAULT_COIN_TYPE, 0, 0);
+			const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+			const signature = await keypair.signTransaction(unsignedTxBytes);
 
-				// Set gas station parameters
-				tx.setSender(userAddress);
-				tx.setGasOwner(gasReservation.sponsor_address);
-				tx.setGasPayment(gasReservation.gas_coins);
-				tx.setGasBudget(GAS_BUDGET);
+			// Execute via gas station
+			const gasStationResponse = await Iota.executeGasStationTransaction(
+				gasStationConfig,
+				gasReservation.reservation_id,
+				unsignedTxBytes,
+				signature.signature
+			);
 
-				// Build and sign
-				const unsignedTxBytes = await tx.build({ client });
-				const keyPair = Iota.getKeyPair(seed, Iota.DEFAULT_COIN_TYPE, 0, 0);
-				const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
-				const signature = await keypair.signTransaction(unsignedTxBytes);
-
-				console.log("📝 Transaction built and signed, submitting to gas station...");
-
-				// Execute via gas station
-				const gasStationResponse = await Iota.executeGasStationTransaction(
-					gasStationConfig,
-					gasReservation.reservation_id,
-					unsignedTxBytes,
-					signature.signature
-				);
-
-				console.log("🎉 Gas station execution complete!");
-				console.log("📋 Full gas station response structure:");
-				console.log(JSON.stringify(gasStationResponse, null, 2));
-
-				// Examine what the gas station actually returns
-				console.log("🔍 Response analysis:");
-				console.log(`- Type: ${typeof gasStationResponse}`);
-				console.log(`- Has digest: ${gasStationResponse?.digest ? "YES" : "NO"}`);
-				console.log(`- Has effects: ${gasStationResponse?.effects ? "YES" : "NO"}`);
-				console.log(`- Has events: ${gasStationResponse?.events ? "YES" : "NO"}`);
-				console.log(`- Has objectChanges: ${gasStationResponse?.objectChanges ? "YES" : "NO"}`);
-
-				if (gasStationResponse?.digest) {
-					console.log(`📜 Transaction digest: ${gasStationResponse.digest}`);
-				}
-
-				// Test if it's compatible with IotaTransactionBlockResponse
-				expect(gasStationResponse).toBeDefined();
-			} catch (error) {
-				console.error("❌ Gas station transaction execution failed:", error);
-				console.error("Error details:", JSON.stringify(error, null, 2));
-				throw error;
-			}
-		}, 30000);
-
-		/**
-		 * Test 4: Compare gas station response vs traditional response structure
-		 */
-		test("Should compare gas station vs traditional transaction response structures", async () => {
-			console.log("🔄 Comparing response structures...");
-
-			try {
-				const client = Iota.createClient(configWithoutGasStation);
-				const vaultConnector = VaultConnectorFactory.get("vault");
-
-				// Get user address and ensure it has funds
-				const seed = await Iota.getSeed(configWithoutGasStation, vaultConnector, TEST_IDENTITY);
-				const addresses = Iota.getAddresses(seed, Iota.DEFAULT_COIN_TYPE, 0, 0, 1, false);
-				const userAddress = addresses[0];
-
-				console.log(`👤 User address for traditional tx: ${userAddress}`);
-
-				// Try to get balance first
-				try {
-					const balance = await client.getBalance({ owner: userAddress });
-					console.log(`💰 Current balance: ${balance.totalBalance}`);
-
-					if (Number.parseInt(balance.totalBalance, 10) < 100000000) {
-						console.log("⚠️ Insufficient balance for traditional transaction, skipping comparison");
-						return;
-					}
-
-					// Create a simple traditional transaction for comparison
-					const traditionalResponse = await Iota.prepareAndPostValueTransaction(
-						configWithoutGasStation,
-						vaultConnector,
-						undefined,
-						TEST_IDENTITY,
-						client,
-						userAddress,
-						BigInt(1000000), // 1 IOTA
-						userAddress, // Send to self
-						{ waitForConfirmation: false }
-					);
-
-					console.log("📋 Traditional response structure:");
-					console.log(JSON.stringify(traditionalResponse, null, 2));
-
-					console.log("🔍 Traditional response analysis:");
-					console.log(`- Type: ${typeof traditionalResponse}`);
-					console.log(`- Has digest: ${traditionalResponse?.digest ? "YES" : "NO"}`);
-					console.log(`- Has effects: ${traditionalResponse?.effects ? "YES" : "NO"}`);
-					console.log(`- Has events: ${traditionalResponse?.events ? "YES" : "NO"}`);
-					console.log(`- Has objectChanges: ${traditionalResponse?.objectChanges ? "YES" : "NO"}`);
-				} catch (error) {
-					console.log(
-						"⚠️ Traditional transaction failed (probably due to insufficient funds):",
-						error
-					);
-					console.log("This is expected if the test address has no funds.");
-				}
-			} catch (error) {
-				console.error("❌ Response comparison failed:", error);
-				// Don't throw - this test is informational
-			}
-		}, 30000);
+			// Test if it's compatible with IotaTransactionBlockResponse
+			expect(gasStationResponse).toBeDefined();
+		});
 	});
 });

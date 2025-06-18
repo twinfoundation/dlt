@@ -733,8 +733,7 @@ export class Iota {
 
 		const result = await response.json();
 
-		// Gas station might return either effects directly or wrapped response
-		const effectsData = result.effects || result;
+		const effectsData = result.effects;
 
 		// Transform gas station response to match IotaTransactionBlockResponse format
 		return {
