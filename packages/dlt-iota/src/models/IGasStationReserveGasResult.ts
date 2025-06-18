@@ -3,21 +3,22 @@
 import type { ObjectRef } from "@iota/iota-sdk/transactions";
 
 /**
- * Interface for gas reservation result from the gas station (with TypeScript camelCase conventions).
+ * Interface for the gas reservation result returned by the gas station.
+ * This matches the snake_case format returned by the gas station API.
  */
-export interface IGasReservationResult {
+export interface IGasStationReserveGasResult {
 	/**
 	 * The sponsor's on-chain address.
 	 */
-	sponsorAddress: string;
+	sponsor_address: string;
 
 	/**
 	 * An ID used to reference this particular gas reservation.
 	 */
-	reservationId: number;
+	reservation_id: number;
 
 	/**
 	 * References to the sponsor's coins that will pay gas.
 	 */
-	gasCoins: ObjectRef[];
+	gas_coins: ObjectRef[];
 }

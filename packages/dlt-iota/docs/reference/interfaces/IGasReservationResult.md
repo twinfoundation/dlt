@@ -1,27 +1,27 @@
 # Interface: IGasReservationResult
 
-Interface for gas reservation result from the gas station.
+Interface for gas reservation result from the gas station (with TypeScript camelCase conventions).
 
 ## Properties
 
-### sponsor\_address
+### sponsorAddress
 
-> **sponsor\_address**: `string`
+> **sponsorAddress**: `string`
 
 The sponsor's on-chain address.
 
 ***
 
-### reservation\_id
+### reservationId
 
-> **reservation\_id**: `number`
+> **reservationId**: `number`
 
 An ID used to reference this particular gas reservation.
 
 ***
 
-### gas\_coins
+### gasCoins
 
-> **gas\_coins**: `object`[]
+> **gasCoins**: `object`[]
 
 References to the sponsor's coins that will pay gas.

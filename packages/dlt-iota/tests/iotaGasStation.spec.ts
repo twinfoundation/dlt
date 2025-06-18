@@ -113,12 +113,12 @@ describe("Iota Gas Station Integration", () => {
 			const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
 
 			// Examine the structure
-			expect(gasReservation).toHaveProperty("sponsor_address");
-			expect(gasReservation).toHaveProperty("reservation_id");
-			expect(gasReservation).toHaveProperty("gas_coins");
-			expect(typeof gasReservation.sponsor_address).toBe("string");
-			expect(typeof gasReservation.reservation_id).toBe("number");
-			expect(Array.isArray(gasReservation.gas_coins)).toBe(true);
+			expect(gasReservation).toHaveProperty("sponsorAddress");
+			expect(gasReservation).toHaveProperty("reservationId");
+			expect(gasReservation).toHaveProperty("gasCoins");
+			expect(typeof gasReservation.sponsorAddress).toBe("string");
+			expect(typeof gasReservation.reservationId).toBe("number");
+			expect(Array.isArray(gasReservation.gasCoins)).toBe(true);
 		});
 
 		test("Should execute transaction via gas station and examine response format", async () => {
@@ -141,8 +141,8 @@ describe("Iota Gas Station Integration", () => {
 
 			// Set gas station parameters
 			tx.setSender(userAddress);
-			tx.setGasOwner(gasReservation.sponsor_address);
-			tx.setGasPayment(gasReservation.gas_coins);
+			tx.setGasOwner(gasReservation.sponsorAddress);
+			tx.setGasPayment(gasReservation.gasCoins);
 			tx.setGasBudget(GAS_BUDGET);
 
 			// Build and sign
@@ -154,7 +154,7 @@ describe("Iota Gas Station Integration", () => {
 			// Execute via gas station
 			const gasStationResponse = await Iota.executeGasStationTransaction(
 				gasStationConfig,
-				gasReservation.reservation_id,
+				gasReservation.reservationId,
 				unsignedTxBytes,
 				signature.signature
 			);

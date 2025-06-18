@@ -4,12 +4,24 @@ import { toB64 } from "@iota/bcs";
 import { IotaClient, type IotaTransactionBlockResponse } from "@iota/iota-sdk/client";
 import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
-import { BaseError, Converter, GeneralError, Guards, Is, type IError } from "@twin.org/core";
+import {
+	BaseError,
+	Converter,
+	GeneralError,
+	Guards,
+	Is,
+	StringHelper,
+	type IError
+} from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
 import type { ILoggingConnector } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
+import { FetchHelper, HttpMethod } from "@twin.org/web";
 import type { IGasReservationResult } from "./models/IGasReservationResult";
+import type { IGasStationConfig } from "./models/IGasStationConfig";
+import type { IGasStationExecuteResponse } from "./models/IGasStationExecuteResponse";
+import type { IGasStationReserveGasResponse } from "./models/IGasStationReserveGasResponse";
 import type { IIotaConfig } from "./models/IIotaConfig";
 import type { IIotaDryRun } from "./models/IIotaDryRun";
 import type { IIotaResponseOptions } from "./models/IIotaResponseOptions";
@@ -187,7 +199,7 @@ export class Iota {
 			txb.transferObjects([coin], txb.pure.address(recipient));
 
 			// Check if gas station configuration is present
-			if (config.gasStation) {
+			if (Is.object<IGasStationConfig>(config.gasStation)) {
 				return await this.prepareAndPostGasStationTransaction(
 					config,
 					vaultConnector,
@@ -242,7 +254,7 @@ export class Iota {
 		options?: IIotaResponseOptions
 	): Promise<IotaTransactionBlockResponse> {
 		// Check if gas station configuration is present
-		if (config.gasStation) {
+		if (Is.object<IGasStationConfig>(config.gasStation)) {
 			return this.prepareAndPostGasStationTransaction(
 				config,
 				vaultConnector,
@@ -616,8 +628,8 @@ export class Iota {
 
 			// Set transaction parameters for sponsoring
 			transaction.setSender(owner);
-			transaction.setGasOwner(gasReservation.sponsor_address);
-			transaction.setGasPayment(gasReservation.gas_coins);
+			transaction.setGasOwner(gasReservation.sponsorAddress);
+			transaction.setGasPayment(gasReservation.gasCoins);
 			transaction.setGasBudget(gasBudget);
 
 			// Build and sign transaction
@@ -637,7 +649,7 @@ export class Iota {
 			// Submit to gas station for co-signing and execution
 			return await this.executeGasStationTransaction(
 				config,
-				gasReservation.reservation_id,
+				gasReservation.reservationId,
 				unsignedTxBytes,
 				signature.signature
 			);
@@ -670,24 +682,26 @@ export class Iota {
 			reserve_duration_secs: 30
 		};
 
-		const response = await fetch(`${config.gasStation.gasStationUrl}/v1/reserve_gas`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
-			},
-			body: JSON.stringify(requestData)
-		});
+		const baseUrl = StringHelper.trimTrailingSlashes(config.gasStation.gasStationUrl);
+		const result = await FetchHelper.fetchJson<typeof requestData, IGasStationReserveGasResponse>(
+			this._CLASS_NAME,
+			`${baseUrl}/v1/reserve_gas`,
+			HttpMethod.POST,
+			requestData,
+			{
+				headers: {
+					Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
+				}
+			}
+		);
 
-		if (!response.ok) {
-			throw new GeneralError(this._CLASS_NAME, "gasReservationFailed", {
-				status: response.status,
-				statusText: response.statusText
-			});
-		}
+		const apiResponse = result.result;
 
-		const result = await response.json();
-		return result.result;
+		return {
+			sponsorAddress: apiResponse.sponsor_address,
+			reservationId: apiResponse.reservation_id,
+			gasCoins: apiResponse.gas_coins
+		};
 	}
 
 	/**
@@ -704,7 +718,11 @@ export class Iota {
 		transactionBytes: Uint8Array,
 		userSignature: string
 	): Promise<IotaTransactionBlockResponse> {
-		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+		Guards.object<IGasStationConfig>(
+			this._CLASS_NAME,
+			nameof(config.gasStation),
+			config.gasStation
+		);
 
 		const requestData = {
 			// eslint-disable-next-line camelcase
@@ -715,33 +733,28 @@ export class Iota {
 			user_sig: userSignature
 		};
 
-		const response = await fetch(`${config.gasStation.gasStationUrl}/v1/execute_tx`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
-			},
-			body: JSON.stringify(requestData)
-		});
-
-		if (!response.ok) {
-			throw new GeneralError(this._CLASS_NAME, "gasStationExecutionFailed", {
-				status: response.status,
-				statusText: response.statusText
-			});
-		}
-
-		const result = await response.json();
+		const baseUrl = StringHelper.trimTrailingSlashes(config.gasStation.gasStationUrl);
+		const result = await FetchHelper.fetchJson<typeof requestData, IGasStationExecuteResponse>(
+			this._CLASS_NAME,
+			`${baseUrl}/v1/execute_tx`,
+			HttpMethod.POST,
+			requestData,
+			{
+				headers: {
+					Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
+				}
+			}
+		);
 
 		const effectsData = result.effects;
 
 		// Transform gas station response to match IotaTransactionBlockResponse format
 		return {
 			digest: effectsData.transactionDigest,
-			effects: effectsData,
+			effects: effectsData as unknown,
 			events: [],
 			objectChanges: [],
 			confirmedLocalExecution: true
-		} as IotaTransactionBlockResponse;
+		} as unknown as IotaTransactionBlockResponse;
 	}
 }

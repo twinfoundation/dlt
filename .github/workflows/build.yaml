@@ -15,10 +15,6 @@ jobs:
     # Add env vars for tests
     env:
       TEST_MNEMONIC: ${{ secrets.TEST_MNEMONIC }}
-      TEST_2_MNEMONIC: ${{ secrets.TEST_2_MNEMONIC }}
-      TEST_NODE_MNEMONIC: ${{ secrets.TEST_NODE_MNEMONIC }}
-      TEST_GAS_STATION_URL: ${{ secrets.TEST_GAS_STATION_URL }}
-      TEST_GAS_STATION_AUTH_TOKEN: ${{ secrets.TEST_GAS_STATION_AUTH_TOKEN }}
       TEST_NODE_ENDPOINT: https://api.testnet.iota.cafe
       TEST_NETWORK: testnet
 
