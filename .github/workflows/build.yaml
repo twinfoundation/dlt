@@ -54,11 +54,6 @@ jobs:
           sudo mv sui /usr/local/bin/sui
           sui --version
 
-      # Install jq for JSON parsing
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      # Start Redis for gas station storage
       - name: Start Redis
         run: |
           docker run -d --name redis -p 6379:6379 redis:7-alpine
