@@ -763,7 +763,7 @@ export class Iota {
 	}
 
 	/**
-	 * Execute a pre-built sponsored transaction through the gas station with optional confirmation.
+	 * Execute and confirm a gas station transaction.
 	 * @param config The configuration containing gas station settings.
 	 * @param client The IOTA client for confirmation.
 	 * @param reservationId The reservation ID from gas reservation.
@@ -772,7 +772,7 @@ export class Iota {
 	 * @param options Response options including confirmation behavior.
 	 * @returns The transaction response (confirmed if waitForConfirmation is true).
 	 */
-	public static async executePreBuiltGasStationTransaction(
+	public static async executeAndConfirmGasStationTransaction(
 		config: IIotaConfig,
 		client: IotaClient,
 		reservationId: number,
@@ -786,44 +786,6 @@ export class Iota {
 			config.gasStation
 		);
 
-		try {
-			return await this.executeAndConfirmGasStationTransaction(
-				config,
-				client,
-				reservationId,
-				transactionBytes,
-				userSignature,
-				options
-			);
-		} catch (error) {
-			throw new GeneralError(
-				Iota._CLASS_NAME,
-				"preBuiltGasStationTransactionFailed",
-				undefined,
-				Iota.extractPayloadError(error)
-			);
-		}
-	}
-
-	/**
-	 * Execute and confirm a gas station transaction.
-	 * @param config The configuration containing gas station settings.
-	 * @param client The IOTA client for confirmation.
-	 * @param reservationId The reservation ID from gas reservation.
-	 * @param transactionBytes The unsigned transaction bytes.
-	 * @param userSignature The user's signature.
-	 * @param options Response options including confirmation behavior.
-	 * @returns The transaction response (confirmed if waitForConfirmation is true).
-	 * @internal
-	 */
-	private static async executeAndConfirmGasStationTransaction(
-		config: IIotaConfig,
-		client: IotaClient,
-		reservationId: number,
-		transactionBytes: Uint8Array,
-		userSignature: string,
-		options?: IIotaResponseOptions
-	): Promise<IotaTransactionBlockResponse> {
 		const response = await this.executeGasStationTransaction(
 			config,
 			reservationId,

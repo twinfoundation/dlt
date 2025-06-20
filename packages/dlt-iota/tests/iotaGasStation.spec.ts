@@ -189,7 +189,7 @@ describe("Iota Gas Station Integration", () => {
 			const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
 			const signature = await keypair.signTransaction(unsignedTxBytes);
 
-			const confirmedResponse = await Iota.executePreBuiltGasStationTransaction(
+			const confirmedResponse = await Iota.executeAndConfirmGasStationTransaction(
 				gasStationConfig,
 				client,
 				gasReservation.reservationId,

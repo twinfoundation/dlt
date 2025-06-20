@@ -789,11 +789,11 @@ The transaction response.
 
 ***
 
-### executePreBuiltGasStationTransaction()
+### executeAndConfirmGasStationTransaction()
 
-> `static` **executePreBuiltGasStationTransaction**(`config`, `client`, `reservationId`, `transactionBytes`, `userSignature`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
+> `static` **executeAndConfirmGasStationTransaction**(`config`, `client`, `reservationId`, `transactionBytes`, `userSignature`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
 
-Execute a pre-built sponsored transaction through the gas station with optional confirmation.
+Execute and confirm a gas station transaction.
 
 #### Parameters
 
