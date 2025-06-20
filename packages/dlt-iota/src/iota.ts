@@ -261,7 +261,8 @@ export class Iota {
 				identity,
 				client,
 				owner,
-				transaction
+				transaction,
+				options
 			);
 		}
 
@@ -609,6 +610,7 @@ export class Iota {
 	 * @param client The client instance.
 	 * @param owner The owner of the address.
 	 * @param transaction The transaction to execute.
+	 * @param options Response options including confirmation behavior.
 	 * @returns The transaction response.
 	 */
 	public static async prepareAndPostGasStationTransaction(
@@ -617,7 +619,8 @@ export class Iota {
 		identity: string,
 		client: IotaClient,
 		owner: string,
-		transaction: Transaction
+		transaction: Transaction,
+		options?: IIotaResponseOptions
 	): Promise<IotaTransactionBlockResponse> {
 		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
 
@@ -647,12 +650,30 @@ export class Iota {
 			const signature = await keypair.signTransaction(unsignedTxBytes);
 
 			// Submit to gas station for co-signing and execution
-			return await this.executeGasStationTransaction(
+			const response = await this.executeGasStationTransaction(
 				config,
 				gasReservation.reservationId,
 				unsignedTxBytes,
 				signature.signature
 			);
+
+			if (options?.waitForConfirmation ?? true) {
+				// Wait for transaction to be indexed and available over API
+				const confirmedTransaction = await Iota.waitForTransactionConfirmation(
+					client,
+					response.digest,
+					config,
+					{
+						showEffects: options?.showEffects ?? true,
+						showEvents: options?.showEvents ?? true,
+						showObjectChanges: options?.showObjectChanges ?? true
+					}
+				);
+
+				return confirmedTransaction;
+			}
+
+			return response;
 		} catch (error) {
 			throw new GeneralError(
 				Iota._CLASS_NAME,
