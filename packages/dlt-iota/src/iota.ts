@@ -649,31 +649,14 @@ export class Iota {
 			const keypair = Ed25519Keypair.fromSecretKey(addressKeyPair.privateKey);
 			const signature = await keypair.signTransaction(unsignedTxBytes);
 
-			// Submit to gas station for co-signing and execution
-			const response = await this.executeGasStationTransaction(
+			return await this.executeAndConfirmGasStationTransaction(
 				config,
+				client,
 				gasReservation.reservationId,
 				unsignedTxBytes,
-				signature.signature
+				signature.signature,
+				options
 			);
-
-			if (options?.waitForConfirmation ?? true) {
-				// Wait for transaction to be indexed and available over API
-				const confirmedTransaction = await Iota.waitForTransactionConfirmation(
-					client,
-					response.digest,
-					config,
-					{
-						showEffects: options?.showEffects ?? true,
-						showEvents: options?.showEvents ?? true,
-						showObjectChanges: options?.showObjectChanges ?? true
-					}
-				);
-
-				return confirmedTransaction;
-			}
-
-			return response;
 		} catch (error) {
 			throw new GeneralError(
 				Iota._CLASS_NAME,
@@ -769,7 +752,7 @@ export class Iota {
 
 		const effectsData = result.effects;
 
-		// Transform gas station response to match IotaTransactionBlockResponse format
+		// Match IotaTransactionBlockResponse format
 		return {
 			digest: effectsData.transactionDigest,
 			effects: effectsData as unknown,
@@ -777,5 +760,92 @@ export class Iota {
 			objectChanges: [],
 			confirmedLocalExecution: true
 		} as unknown as IotaTransactionBlockResponse;
+	}
+
+	/**
+	 * Execute a pre-built sponsored transaction through the gas station with optional confirmation.
+	 * @param config The configuration containing gas station settings.
+	 * @param client The IOTA client for confirmation.
+	 * @param reservationId The reservation ID from gas reservation.
+	 * @param transactionBytes The unsigned transaction bytes.
+	 * @param userSignature The user's signature.
+	 * @param options Response options including confirmation behavior.
+	 * @returns The transaction response (confirmed if waitForConfirmation is true).
+	 */
+	public static async executePreBuiltGasStationTransaction(
+		config: IIotaConfig,
+		client: IotaClient,
+		reservationId: number,
+		transactionBytes: Uint8Array,
+		userSignature: string,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		Guards.object<IGasStationConfig>(
+			this._CLASS_NAME,
+			nameof(config.gasStation),
+			config.gasStation
+		);
+
+		try {
+			return await this.executeAndConfirmGasStationTransaction(
+				config,
+				client,
+				reservationId,
+				transactionBytes,
+				userSignature,
+				options
+			);
+		} catch (error) {
+			throw new GeneralError(
+				Iota._CLASS_NAME,
+				"preBuiltGasStationTransactionFailed",
+				undefined,
+				Iota.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Execute and confirm a gas station transaction.
+	 * @param config The configuration containing gas station settings.
+	 * @param client The IOTA client for confirmation.
+	 * @param reservationId The reservation ID from gas reservation.
+	 * @param transactionBytes The unsigned transaction bytes.
+	 * @param userSignature The user's signature.
+	 * @param options Response options including confirmation behavior.
+	 * @returns The transaction response (confirmed if waitForConfirmation is true).
+	 * @internal
+	 */
+	private static async executeAndConfirmGasStationTransaction(
+		config: IIotaConfig,
+		client: IotaClient,
+		reservationId: number,
+		transactionBytes: Uint8Array,
+		userSignature: string,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		const response = await this.executeGasStationTransaction(
+			config,
+			reservationId,
+			transactionBytes,
+			userSignature
+		);
+
+		if (options?.waitForConfirmation ?? true) {
+			const confirmedTransaction = await Iota.waitForTransactionConfirmation(
+				client,
+				response.digest,
+				config,
+				{
+					showEffects: options?.showEffects ?? true,
+					showEvents: options?.showEvents ?? true,
+					showObjectChanges: options?.showObjectChanges ?? true
+				}
+			);
+
+			return confirmedTransaction;
+		}
+
+		return response;
 	}
 }

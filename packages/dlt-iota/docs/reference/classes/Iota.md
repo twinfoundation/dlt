@@ -786,3 +786,55 @@ The user's signature.
 `Promise`\<`IotaTransactionBlockResponse`\>
 
 The transaction response.
+
+***
+
+### executePreBuiltGasStationTransaction()
+
+> `static` **executePreBuiltGasStationTransaction**(`config`, `client`, `reservationId`, `transactionBytes`, `userSignature`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
+
+Execute a pre-built sponsored transaction through the gas station with optional confirmation.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The configuration containing gas station settings.
+
+##### client
+
+`IotaClient`
+
+The IOTA client for confirmation.
+
+##### reservationId
+
+`number`
+
+The reservation ID from gas reservation.
+
+##### transactionBytes
+
+`Uint8Array`
+
+The unsigned transaction bytes.
+
+##### userSignature
+
+`string`
+
+The user's signature.
+
+##### options?
+
+[`IIotaResponseOptions`](../interfaces/IIotaResponseOptions.md)
+
+Response options including confirmation behavior.
+
+#### Returns
+
+`Promise`\<`IotaTransactionBlockResponse`\>
+
+The transaction response (confirmed if waitForConfirmation is true).

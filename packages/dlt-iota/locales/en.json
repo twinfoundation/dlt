@@ -9,7 +9,8 @@
 			"addressNotFound": "The address is missing could not be found from the seed \"{address}\"",
 			"gasStationTransactionFailed": "The gas station transaction failed",
 			"gasReservationFailed": "The gas reservation failed",
-			"gasStationExecutionFailed": "The gas station execution failed"
+			"gasStationExecutionFailed": "The gas station execution failed",
+			"preBuiltGasStationTransactionFailed": "The pre-built gas station transaction failed"
 		}
 	}
 }
