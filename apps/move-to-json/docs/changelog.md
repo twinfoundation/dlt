@@ -1,5 +1,12 @@
 # @twin.org/move-to-json - Changelog
 
+## [0.0.1-next.28](https://github.com/twinfoundation/dlt/compare/move-to-json-v0.0.1-next.27...move-to-json-v0.0.1-next.28) (2025-06-23)
+
+
+### Miscellaneous Chores
+
+* **move-to-json:** Synchronize repo versions
+
 ## [0.0.1-next.27](https://github.com/twinfoundation/dlt/compare/move-to-json-v0.0.1-next.26...move-to-json-v0.0.1-next.27) (2025-06-18)
 
 
