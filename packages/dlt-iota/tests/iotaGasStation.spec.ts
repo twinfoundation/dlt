@@ -162,5 +162,45 @@ describe("Iota Gas Station Integration", () => {
 			// Test if it's compatible with IotaTransactionBlockResponse
 			expect(gasStationResponse).toBeDefined();
 		});
+
+		test("Should execute pre-built transaction via gas station with confirmation", async () => {
+			const client = Iota.createClient(gasStationConfig);
+			const vaultConnector = VaultConnectorFactory.get("vault");
+
+			const seed = await Iota.getSeed(gasStationConfig, vaultConnector, TEST_IDENTITY);
+			const addresses = Iota.getAddresses(seed, Iota.DEFAULT_COIN_TYPE, 0, 0, 1, false);
+			const userAddress = addresses[0];
+
+			const gasReservation = await Iota.reserveGas(gasStationConfig, GAS_BUDGET);
+
+			const tx = new Transaction();
+			tx.moveCall({
+				target: "0x2::clock::timestamp_ms",
+				arguments: [tx.object("0x6")]
+			});
+
+			tx.setSender(userAddress);
+			tx.setGasOwner(gasReservation.sponsorAddress);
+			tx.setGasPayment(gasReservation.gasCoins);
+			tx.setGasBudget(GAS_BUDGET);
+
+			const unsignedTxBytes = await tx.build({ client });
+			const keyPair = Iota.getKeyPair(seed, Iota.DEFAULT_COIN_TYPE, 0, 0);
+			const keypair = Ed25519Keypair.fromSecretKey(keyPair.privateKey);
+			const signature = await keypair.signTransaction(unsignedTxBytes);
+
+			const confirmedResponse = await Iota.executeAndConfirmGasStationTransaction(
+				gasStationConfig,
+				client,
+				gasReservation.reservationId,
+				unsignedTxBytes,
+				signature.signature,
+				{ waitForConfirmation: true }
+			);
+
+			expect(confirmedResponse).toBeDefined();
+			expect(confirmedResponse.digest).toBeDefined();
+			expect(typeof confirmedResponse.digest).toBe("string");
+		});
 	});
 });

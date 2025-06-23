@@ -665,7 +665,7 @@ True if the error is an abort error, false otherwise.
 
 ### prepareAndPostGasStationTransaction()
 
-> `static` **prepareAndPostGasStationTransaction**(`config`, `vaultConnector`, `identity`, `client`, `owner`, `transaction`): `Promise`\<`IotaTransactionBlockResponse`\>
+> `static` **prepareAndPostGasStationTransaction**(`config`, `vaultConnector`, `identity`, `client`, `owner`, `transaction`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
 
 Prepare and post a transaction using gas station sponsoring.
 
@@ -706,6 +706,12 @@ The owner of the address.
 `Transaction`
 
 The transaction to execute.
+
+##### options?
+
+[`IIotaResponseOptions`](../interfaces/IIotaResponseOptions.md)
+
+Response options including confirmation behavior.
 
 #### Returns
 
@@ -780,3 +786,55 @@ The user's signature.
 `Promise`\<`IotaTransactionBlockResponse`\>
 
 The transaction response.
+
+***
+
+### executeAndConfirmGasStationTransaction()
+
+> `static` **executeAndConfirmGasStationTransaction**(`config`, `client`, `reservationId`, `transactionBytes`, `userSignature`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
+
+Execute and confirm a gas station transaction.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The configuration containing gas station settings.
+
+##### client
+
+`IotaClient`
+
+The IOTA client for confirmation.
+
+##### reservationId
+
+`number`
+
+The reservation ID from gas reservation.
+
+##### transactionBytes
+
+`Uint8Array`
+
+The unsigned transaction bytes.
+
+##### userSignature
+
+`string`
+
+The user's signature.
+
+##### options?
+
+[`IIotaResponseOptions`](../interfaces/IIotaResponseOptions.md)
+
+Response options including confirmation behavior.
+
+#### Returns
+
+`Promise`\<`IotaTransactionBlockResponse`\>
+
+The transaction response (confirmed if waitForConfirmation is true).

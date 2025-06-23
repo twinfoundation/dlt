@@ -58,8 +58,9 @@ runs:
     - name: Create gas station config
       shell: bash
       run: |
-        cat > gas-station-config.yaml << EOF
-        signer-config:
+        node -e "
+        const fs = require('fs');
+        const config = \`signer-config:
           local:
             keypair: AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f
         rpc-host-ip: 0.0.0.0
@@ -67,15 +68,17 @@ runs:
         metrics-port: 9184
         storage-config:
           redis:
-            redis_url: "redis://127.0.0.1:6379"
-        fullnode-url: "${{ inputs.test-node-endpoint }}"
+            redis_url: \"redis://127.0.0.1:6379\"
+        fullnode-url: \"${{ inputs.test-node-endpoint }}\"
         coin-init-config:
           target-init-balance: 100000000
           refresh-interval-sec: 86400
         daily-gas-usage-cap: 1500000000000
         access-controller:
           access-policy: disabled
-        EOF
+        \`;
+        fs.writeFileSync('gas-station-config.yaml', config);
+        "
 
     - name: Start IOTA Gas Station
       shell: bash
