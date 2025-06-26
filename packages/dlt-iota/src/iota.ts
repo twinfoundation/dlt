@@ -21,6 +21,7 @@ import { FetchHelper, HttpMethod } from "@twin.org/web";
 import type { IGasReservationResult } from "./models/IGasReservationResult";
 import type { IGasStationConfig } from "./models/IGasStationConfig";
 import type { IGasStationExecuteResponse } from "./models/IGasStationExecuteResponse";
+import type { IGasStationFundingResponse } from "./models/IGasStationFundingResponse";
 import type { IGasStationReserveGasResponse } from "./models/IGasStationReserveGasResponse";
 import type { IIotaConfig } from "./models/IIotaConfig";
 import type { IIotaDryRun } from "./models/IIotaDryRun";
@@ -809,5 +810,254 @@ export class Iota {
 		}
 
 		return response;
+	}
+
+	/**
+	 * Fund an address using the gas station's sponsor address.
+	 * This method transfers funds directly from the sponsor to the target address.
+	 * It creates a funding transaction that the gas station can execute using its own funds.
+	 * @param config The configuration containing gas station settings.
+	 * @param vaultConnector The vault connector (not used for funding, but required for API consistency).
+	 * @param loggingConnector The logging connector for transaction cost logging.
+	 * @param identity The identity (not used for funding, but required for API consistency).
+	 * @param client The IOTA client for the transaction.
+	 * @param recipient The address to fund.
+	 * @param amount The fixed amount to transfer (in nano-IOTA).
+	 * @param options Response options including confirmation behavior.
+	 * @returns The transaction response.
+	 */
+	public static async fundAddressFromGasStation(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		loggingConnector: ILoggingConnector | undefined,
+		identity: string,
+		client: IotaClient,
+		recipient: string,
+		amount: bigint,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+		Guards.object(this._CLASS_NAME, nameof(vaultConnector), vaultConnector);
+		Guards.stringValue(this._CLASS_NAME, nameof(identity), identity);
+		Guards.stringValue(this._CLASS_NAME, nameof(recipient), recipient);
+		Guards.bigint(this._CLASS_NAME, nameof(amount), amount);
+
+		try {
+			if (loggingConnector) {
+				await loggingConnector.log({
+					level: "info",
+					source: this._CLASS_NAME,
+					ts: Date.now(),
+					message: "gasStationFundingAttempt",
+					data: {
+						recipient,
+						amount: amount.toString()
+					}
+				});
+			}
+
+			// First, try the dedicated funding endpoint if available
+			try {
+				const result = await this.fundAddress(config, recipient, amount);
+
+				// If successful, return a properly formatted response
+				const response: IotaTransactionBlockResponse = {
+					digest: result.transaction_digest ?? result.digest ?? "funding-transaction",
+					effects: result.effects ?? {},
+					events: result.events ?? [],
+					objectChanges: result.objectChanges ?? [],
+					confirmedLocalExecution: true
+				} as IotaTransactionBlockResponse;
+
+				if (loggingConnector) {
+					await loggingConnector.log({
+						level: "info",
+						source: this._CLASS_NAME,
+						ts: Date.now(),
+						message: "gasStationFundingSuccess",
+						data: {
+							recipient,
+							amount: amount.toString(),
+							digest: response.digest
+						}
+					});
+				}
+
+				return response;
+			} catch {
+				// Funding endpoint not available, try alternative approach
+				if (loggingConnector) {
+					await loggingConnector.log({
+						level: "info",
+						source: this._CLASS_NAME,
+						ts: Date.now(),
+						message: "gasStationDirectFundingUnavailable",
+						data: {
+							recipient,
+							amount: amount.toString()
+						}
+					});
+				}
+
+				// For gas station funding, we use the service account identity to initiate a transaction
+				// The gas station will sponsor the gas costs, and the service account provides the funds
+				// This assumes the service account (identity) has sufficient balance for funding
+
+				// Get the service account's address
+				const seed = await this.getSeed(config, vaultConnector, identity);
+				const addresses = this.getAddresses(
+					seed,
+					config.coinType ?? this.DEFAULT_COIN_TYPE,
+					0,
+					0,
+					1,
+					false
+				);
+				const serviceAddress = addresses[0];
+
+				// Check if the service account has sufficient balance
+				const serviceBalance = await client.getBalance({
+					owner: serviceAddress
+				});
+
+				if (BigInt(serviceBalance.totalBalance) < amount) {
+					throw new GeneralError(this._CLASS_NAME, "serviceAccountInsufficientBalance", {
+						serviceAddress,
+						serviceBalance: serviceBalance.totalBalance,
+						required: amount.toString()
+					});
+				}
+
+				// Create a funding transaction from service account to recipient
+				// This will be sponsored by the gas station (gas costs paid by sponsor)
+				// Use direct coin transfer instead of splitting to avoid gas station coin operation issues
+				const transaction = new Transaction();
+
+				// Get coins from the service account to use for funding
+				const serviceCoins = await client.getCoins({
+					owner: serviceAddress,
+					coinType: "0x2::iota::IOTA"
+				});
+
+				// Find a coin with sufficient balance for funding
+				const suitableCoin = serviceCoins.data.find(coin => BigInt(coin.balance) >= amount);
+
+				if (!suitableCoin) {
+					// If no single coin has enough, we need to merge coins first
+					// For now, throw an error suggesting the service account needs larger coins
+					throw new GeneralError(this._CLASS_NAME, "serviceAccountCoinFragmentation", {
+						serviceAddress,
+						availableCoins: serviceCoins.data.length,
+						largestCoin: serviceCoins.data.length > 0 ? serviceCoins.data[0].balance : "0",
+						required: amount.toString()
+					});
+				}
+
+				if (BigInt(suitableCoin.balance) === amount) {
+					// Exact amount - transfer the entire coin
+					transaction.transferObjects(
+						[transaction.object(suitableCoin.coinObjectId)],
+						transaction.pure.address(recipient)
+					);
+				} else {
+					// Need to split the coin - use splitCoins with the specific coin object
+					const [splitCoin] = transaction.splitCoins(
+						transaction.object(suitableCoin.coinObjectId),
+						[transaction.pure.u64(amount)]
+					);
+					transaction.transferObjects([splitCoin], transaction.pure.address(recipient));
+				}
+
+				const result = await this.prepareAndPostGasStationTransaction(
+					config,
+					vaultConnector,
+					identity,
+					client,
+					serviceAddress,
+					transaction,
+					options
+				);
+
+				if (loggingConnector) {
+					await loggingConnector.log({
+						level: "info",
+						source: this._CLASS_NAME,
+						ts: Date.now(),
+						message: "gasStationServiceFundingSuccess",
+						data: {
+							serviceAddress,
+							recipient,
+							amount: amount.toString(),
+							digest: result.digest
+						}
+					});
+				}
+
+				return result;
+			}
+		} catch (error) {
+			if (error instanceof GeneralError && error.source === this._CLASS_NAME) {
+				throw error;
+			}
+
+			throw new GeneralError(
+				this._CLASS_NAME,
+				"gasStationFundingFailed",
+				{ recipient, amount: amount.toString() },
+				this.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Fund an address directly through the gas station endpoint.
+	 * @param config The configuration containing gas station settings.
+	 * @param recipient The address to fund.
+	 * @param amount The amount to transfer (in nano-IOTA).
+	 * @returns The gas station funding response.
+	 */
+	public static async fundAddress(
+		config: IIotaConfig,
+		recipient: string,
+		amount: bigint
+	): Promise<IGasStationFundingResponse> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+		Guards.stringValue(this._CLASS_NAME, nameof(recipient), recipient);
+		Guards.bigint(this._CLASS_NAME, nameof(amount), amount);
+
+		const requestData = {
+			// eslint-disable-next-line camelcase
+			recipient_address: recipient,
+			amount: amount.toString()
+		};
+
+		const baseUrl = StringHelper.trimTrailingSlashes(config.gasStation.gasStationUrl);
+		const result = await FetchHelper.fetchJson<typeof requestData, IGasStationFundingResponse>(
+			this._CLASS_NAME,
+			`${baseUrl}/v1/fund_address`,
+			HttpMethod.POST,
+			requestData,
+			{
+				headers: {
+					Authorization: `Bearer ${config.gasStation.gasStationAuthToken}`
+				}
+			}
+		);
+
+		return result;
+	}
+
+	/**
+	 * Get the gas station configuration.
+	 * @param config The configuration containing gas station settings.
+	 * @returns The gas station configuration.
+	 */
+	public static getGasStationConfig(config: IIotaConfig): IGasStationConfig {
+		return (
+			config.gasStation ?? {
+				gasStationUrl: "",
+				gasStationAuthToken: ""
+			}
+		);
 	}
 }

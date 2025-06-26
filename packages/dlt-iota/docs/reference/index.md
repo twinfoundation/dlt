@@ -9,6 +9,7 @@
 - [IGasReservationResult](interfaces/IGasReservationResult.md)
 - [IGasStationConfig](interfaces/IGasStationConfig.md)
 - [IGasStationExecuteResponse](interfaces/IGasStationExecuteResponse.md)
+- [IGasStationFundingResponse](interfaces/IGasStationFundingResponse.md)
 - [IGasStationReserveGasResponse](interfaces/IGasStationReserveGasResponse.md)
 - [IGasStationReserveGasResult](interfaces/IGasStationReserveGasResult.md)
 - [IIotaConfig](interfaces/IIotaConfig.md)
