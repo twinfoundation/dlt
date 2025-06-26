@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 import { Ed25519Keypair } from "@iota/iota-sdk/keypairs/ed25519";
 import { Transaction } from "@iota/iota-sdk/transactions";
-import { GeneralError, StringHelper } from "@twin.org/core";
+import { GeneralError } from "@twin.org/core";
 import { MemoryEntityStorageConnector } from "@twin.org/entity-storage-connector-memory";
 import { EntityStorageConnectorFactory } from "@twin.org/entity-storage-models";
 import type { ILogEntry } from "@twin.org/logging-models";
@@ -14,7 +14,6 @@ import {
 	initSchema
 } from "@twin.org/vault-connector-entity-storage";
 import { VaultConnectorFactory } from "@twin.org/vault-models";
-import { FetchHelper, HttpMethod } from "@twin.org/web";
 import {
 	TEST_CLIENT_OPTIONS,
 	TEST_NETWORK,
@@ -68,34 +67,17 @@ describe("Iota Gas Station Integration", () => {
 		// Method 1: Try gas station faucet endpoint
 		const gasStation = gasStationConfig.gasStation;
 		if (gasStation) {
-			const fundingRequestData = {
-				// eslint-disable-next-line camelcase
-				recipient_address: serviceAddress,
-				amount: fundingAmount.toString()
-			};
-
-			const baseUrl = StringHelper.trimTrailingSlashes(gasStation.gasStationUrl);
-
-			// Use async/await with proper error handling instead of try-catch
 			// Try gas station faucet - this is a helper function so we handle both success/failure
-			let fundingResult: { transaction_digest?: string; digest?: string } | null = null;
-			try {
-				fundingResult = await FetchHelper.fetchJson<
-					typeof fundingRequestData,
-					{ transaction_digest?: string; digest?: string }
-				>("TestHelper", `${baseUrl}/v1/fund_address`, HttpMethod.POST, fundingRequestData, {
-					headers: {
-						Authorization: `Bearer ${gasStation.gasStationAuthToken}`
-					}
+			const fundingResult = await Iota.fundAddress(gasStationConfig, serviceAddress, fundingAmount)
+				.then(result => ({ success: true, data: result, error: null }))
+				.catch(error => {
+					console.log(
+						`❌ Gas station faucet failed: ${error instanceof Error ? error.message : String(error)}`
+					);
+					return { success: false, data: null, error };
 				});
-			} catch (error) {
-				console.log(
-					`❌ Gas station faucet failed: ${error instanceof Error ? error.message : String(error)}`
-				);
-				fundingResult = null;
-			}
 
-			if (fundingResult) {
+			if (fundingResult.success && fundingResult.data) {
 				fundingSuccessful = true;
 				// Wait for transaction to be processed
 				await new Promise(resolve => setTimeout(resolve, 3000));
@@ -112,27 +94,26 @@ describe("Iota Gas Station Integration", () => {
 
 			for (const faucet of alternativeFaucets) {
 				// Try alternative faucet - this is a helper function so we handle both success/failure
-				let faucetResult: Response | null = null;
-				try {
-					faucetResult = await fetch(faucet.url, {
-						method: faucet.method,
-						headers: {
-							"Content-Type": "application/json"
-						},
-						body: JSON.stringify({
-							address: serviceAddress,
-							amount: fundingAmount.toString()
-						})
+				const faucetResult = await fetch(faucet.url, {
+					method: faucet.method,
+					headers: {
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify({
+						address: serviceAddress,
+						amount: fundingAmount.toString()
+					})
+				})
+					.then(response => ({ success: true, response }))
+					.catch(error => {
+						console.log(
+							`❌ Alternative faucet error: ${error instanceof Error ? error.message : String(error)}`
+						);
+						return { success: false, response: null };
 					});
-				} catch (error) {
-					console.log(
-						`❌ Alternative faucet error: ${error instanceof Error ? error.message : String(error)}`
-					);
-					faucetResult = null;
-				}
 
-				if (faucetResult?.ok) {
-					await faucetResult.json();
+				if (faucetResult.success && faucetResult.response?.ok) {
+					await faucetResult.response.json();
 					fundingSuccessful = true;
 					await new Promise(resolve => setTimeout(resolve, 3000));
 					break;
@@ -1047,55 +1028,55 @@ describe("Iota Gas Station Integration", () => {
 					: undefined
 			};
 
-			// Use proper async error handling with try-catch
-			let fundingResult;
-			try {
-				fundingResult = await Iota.fundAddressFromGasStation(
-					fallbackTestConfig,
-					vaultConnector,
-					mockLoggingConnector,
-					TEST_IDENTITY,
-					client,
-					recipientAddress,
-					fundingAmount,
-					{ waitForConfirmation: true }
-				);
-			} catch (error) {
-				// Verify we at least attempted the fallback
-				expect(logEntries.length).toBeGreaterThan(0);
-				const attemptLog = logEntries.find(log => log.message === "gasStationFundingAttempt");
-				expect(attemptLog).toBeDefined();
+			// Test both success and failure scenarios using Promise chaining
+			const fundingResult = await Iota.fundAddressFromGasStation(
+				fallbackTestConfig,
+				vaultConnector,
+				mockLoggingConnector,
+				TEST_IDENTITY,
+				client,
+				recipientAddress,
+				fundingAmount,
+				{ waitForConfirmation: true }
+			)
+				.then(success => ({ type: "success" as const, data: success, error: null }))
+				.catch(error => {
+					// Verify we at least attempted the fallback
+					expect(logEntries.length).toBeGreaterThan(0);
+					const attemptLog = logEntries.find(log => log.message === "gasStationFundingAttempt");
+					expect(attemptLog).toBeDefined();
 
-				// This failure is acceptable - it means:
-				// 1. Gas station endpoint failed (as expected) ✅
-				// 2. Service account fallback was attempted ✅
-				// 3. The transaction failed due to network/gas station processing issues
-				// This is still testing the fallback mechanism correctly
+					// This failure is acceptable - it means:
+					// 1. Gas station endpoint failed (as expected) ✅
+					// 2. Service account fallback was attempted ✅
+					// 3. The transaction failed due to network/gas station processing issues
+					// This is still testing the fallback mechanism correctly
 
-				// Check if the error is related to gas station processing
-				if (error instanceof GeneralError) {
-					// Check for specific localized gas station errors
-					if (
-						error.message === "iota.gasStationTransactionFailed" ||
-						error.message === "iota.gasStationFundingFailed"
-					) {
-						expect(error.source).toBe("Iota");
-					} else {
-						console.log("Different GeneralError occurred:", error.message);
-						// Other GeneralErrors are also acceptable
+					// Check if the error is related to gas station processing
+					if (error instanceof GeneralError) {
+						// Check for specific localized gas station errors
+						if (
+							error.message === "iota.gasStationTransactionFailed" ||
+							error.message === "iota.gasStationFundingFailed"
+						) {
+							expect(error.source).toBe("Iota");
+						} else {
+							console.log("Different GeneralError occurred:", error.message);
+							// Other GeneralErrors are also acceptable
+						}
+					} else if (error instanceof Error) {
+						console.log("Non-GeneralError occurred:", error.message);
+						// Network errors, fetch errors, etc. are also acceptable for this test
 					}
-				} else if (error instanceof Error) {
-					console.log("Non-GeneralError occurred:", error.message);
-					// Network errors, fetch errors, etc. are also acceptable for this test
-				}
 
-				fundingResult = null; // Set to null to indicate failure was expected
-			}
+					return { type: "error" as const, data: null, error };
+				});
 
-			// If the operation succeeded, verify the response
-			if (fundingResult) {
-				expect(fundingResult).toBeDefined();
-				expect(fundingResult.digest).toBeDefined();
+			// Handle both success and failure scenarios
+			if (fundingResult.type === "success") {
+				// Verify success scenario
+				expect(fundingResult.data).toBeDefined();
+				expect(fundingResult.data.digest).toBeDefined();
 
 				expect(logEntries.length).toBeGreaterThanOrEqual(2);
 
