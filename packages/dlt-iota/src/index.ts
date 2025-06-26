@@ -5,7 +5,6 @@ export * from "./models/IGasReservationResult";
 export * from "./models/IGasStationReserveGasResult";
 export * from "./models/IGasStationReserveGasResponse";
 export * from "./models/IGasStationExecuteResponse";
-export * from "./models/IGasStationFundingResponse";
 export * from "./models/IGasStationConfig";
 export * from "./models/IIotaConfig";
 export * from "./models/IIotaDryRun";

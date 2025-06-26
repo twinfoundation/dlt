@@ -841,13 +841,12 @@ The transaction response (confirmed if waitForConfirmation is true).
 
 ***
 
-### fundAddressFromGasStation()
+### transferFromGasStationServiceAccount()
 
-> `static` **fundAddressFromGasStation**(`config`, `vaultConnector`, `loggingConnector`, `identity`, `client`, `recipient`, `amount`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
+> `static` **transferFromGasStationServiceAccount**(`config`, `vaultConnector`, `serviceIdentity`, `client`, `recipientAddress`, `amount`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
 
-Fund an address using the gas station's sponsor address.
-This method transfers funds directly from the sponsor to the target address.
-It creates a funding transaction that the gas station can execute using its own funds.
+Transfer funds from gas station service account to a target address
+using gas station sponsoring for gas fees.
 
 #### Parameters
 
@@ -861,19 +860,13 @@ The configuration containing gas station settings.
 
 `IVaultConnector`
 
-The vault connector (not used for funding, but required for API consistency).
+The vault connector for accessing service account keys.
 
-##### loggingConnector
-
-The logging connector for transaction cost logging.
-
-`undefined` | `ILoggingConnector`
-
-##### identity
+##### serviceIdentity
 
 `string`
 
-The identity (not used for funding, but required for API consistency).
+The identity of the service account that holds funds.
 
 ##### client
 
@@ -881,17 +874,17 @@ The identity (not used for funding, but required for API consistency).
 
 The IOTA client for the transaction.
 
-##### recipient
+##### recipientAddress
 
 `string`
 
-The address to fund.
+The address to receive the funds.
 
 ##### amount
 
 `bigint`
 
-The fixed amount to transfer (in nano-IOTA).
+The amount to transfer (in nano-IOTA).
 
 ##### options?
 
@@ -904,40 +897,6 @@ Response options including confirmation behavior.
 `Promise`\<`IotaTransactionBlockResponse`\>
 
 The transaction response.
-
-***
-
-### fundAddress()
-
-> `static` **fundAddress**(`config`, `recipient`, `amount`): `Promise`\<[`IGasStationFundingResponse`](../interfaces/IGasStationFundingResponse.md)\>
-
-Fund an address directly through the gas station endpoint.
-
-#### Parameters
-
-##### config
-
-[`IIotaConfig`](../interfaces/IIotaConfig.md)
-
-The configuration containing gas station settings.
-
-##### recipient
-
-`string`
-
-The address to fund.
-
-##### amount
-
-`bigint`
-
-The amount to transfer (in nano-IOTA).
-
-#### Returns
-
-`Promise`\<[`IGasStationFundingResponse`](../interfaces/IGasStationFundingResponse.md)\>
-
-The gas station funding response.
 
 ***
 
