@@ -389,34 +389,27 @@ export class Iota {
 	 * @returns The extracted error.
 	 */
 	public static extractPayloadError(error: unknown): IError {
-		if (error && typeof error === "object") {
-			const errObj = error as { code?: string; message?: string };
-
-			if (errObj.code === "InsufficientGas") {
-				return new GeneralError(Iota._CLASS_NAME, "insufficientFunds");
+		if (Is.object<{ code?: string; message?: string; inner?: IError }>(error)) {
+			if (!Is.empty(error.inner)) {
+				error.inner = Iota.extractPayloadError(error.inner);
 			}
 
-			return {
-				name: "IOTA",
-				message: errObj.message ?? "Unknown error"
-			};
-		} else if (typeof error === "string") {
-			try {
-				const parsedError = JSON.parse(error);
-				return {
-					name: "IOTA",
-					message: parsedError.message ?? "Unknown error"
-				};
-			} catch {
-				// The error string is not valid JSON
-				return {
-					name: "IOTA",
-					message: error
-				};
+			if (error.code === "InsufficientGas") {
+				return new GeneralError(Iota._CLASS_NAME, "insufficientFunds");
+			} else if (error.message?.startsWith("ErrorObject")) {
+				const msg = /message: "(.*)"/.exec(error.message);
+				if (msg && msg.length > 1) {
+					error = msg[1];
+				}
 			}
 		}
 
-		return BaseError.fromError(error);
+		const baseError = BaseError.fromError(error);
+		if (baseError.name === "Base" && !Is.stringValue(baseError.source)) {
+			baseError.name = "IOTA";
+			baseError.source = Iota._CLASS_NAME;
+		}
+		return baseError;
 	}
 
 	/**
