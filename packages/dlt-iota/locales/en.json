@@ -9,7 +9,11 @@
 			"addressNotFound": "The address is missing could not be found from the seed \"{address}\"",
 			"gasStationTransactionFailed": "The gas station transaction failed",
 			"gasReservationFailed": "The gas reservation failed",
-			"gasStationExecutionFailed": "The gas station execution failed"
+			"gasStationExecutionFailed": "The gas station execution failed",
+			"gasStationFundingFailed": "The gas station funding failed for recipient \"{recipient}\" with amount \"{amount}\"",
+			"serviceAccountInsufficientBalance": "Service account does not have sufficient balance for funding. Service address: \"{serviceAddress}\", Available: \"{serviceBalance}\", Required: \"{required}\"",
+			"serviceAccountCoinFragmentation": "Service account coins are too fragmented for direct transfer. Service address: \"{serviceAddress}\", Available coins: \"{availableCoins}\", Largest coin: \"{largestCoin}\", Required: \"{required}\"",
+			"dryRunFailed": "The transaction dry run failed"
 		}
 	}
 }

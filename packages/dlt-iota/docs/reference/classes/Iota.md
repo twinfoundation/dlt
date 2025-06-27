@@ -838,3 +838,84 @@ Response options including confirmation behavior.
 `Promise`\<`IotaTransactionBlockResponse`\>
 
 The transaction response (confirmed if waitForConfirmation is true).
+
+***
+
+### transferFromGasStationServiceAccount()
+
+> `static` **transferFromGasStationServiceAccount**(`config`, `vaultConnector`, `serviceIdentity`, `client`, `recipientAddress`, `amount`, `options?`): `Promise`\<`IotaTransactionBlockResponse`\>
+
+Transfer funds from gas station service account to a target address
+using gas station sponsoring for gas fees.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The configuration containing gas station settings.
+
+##### vaultConnector
+
+`IVaultConnector`
+
+The vault connector for accessing service account keys.
+
+##### serviceIdentity
+
+`string`
+
+The identity of the service account that holds funds.
+
+##### client
+
+`IotaClient`
+
+The IOTA client for the transaction.
+
+##### recipientAddress
+
+`string`
+
+The address to receive the funds.
+
+##### amount
+
+`bigint`
+
+The amount to transfer (in nano-IOTA).
+
+##### options?
+
+[`IIotaResponseOptions`](../interfaces/IIotaResponseOptions.md)
+
+Response options including confirmation behavior.
+
+#### Returns
+
+`Promise`\<`IotaTransactionBlockResponse`\>
+
+The transaction response.
+
+***
+
+### getGasStationConfig()
+
+> `static` **getGasStationConfig**(`config`): [`IGasStationConfig`](../interfaces/IGasStationConfig.md)
+
+Get the gas station configuration.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The configuration containing gas station settings.
+
+#### Returns
+
+[`IGasStationConfig`](../interfaces/IGasStationConfig.md)
+
+The gas station configuration.

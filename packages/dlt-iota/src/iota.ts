@@ -21,6 +21,7 @@ import { FetchHelper, HttpMethod } from "@twin.org/web";
 import type { IGasReservationResult } from "./models/IGasReservationResult";
 import type { IGasStationConfig } from "./models/IGasStationConfig";
 import type { IGasStationExecuteResponse } from "./models/IGasStationExecuteResponse";
+
 import type { IGasStationReserveGasResponse } from "./models/IGasStationReserveGasResponse";
 import type { IIotaConfig } from "./models/IIotaConfig";
 import type { IIotaDryRun } from "./models/IIotaDryRun";
@@ -802,5 +803,126 @@ export class Iota {
 		}
 
 		return response;
+	}
+
+	/**
+	 * Transfer funds from gas station service account to a target address
+	 * using gas station sponsoring for gas fees.
+	 * @param config The configuration containing gas station settings.
+	 * @param vaultConnector The vault connector for accessing service account keys.
+	 * @param serviceIdentity The identity of the service account that holds funds.
+	 * @param client The IOTA client for the transaction.
+	 * @param recipientAddress The address to receive the funds.
+	 * @param amount The amount to transfer (in nano-IOTA).
+	 * @param options Response options including confirmation behavior.
+	 * @returns The transaction response.
+	 */
+	public static async transferFromGasStationServiceAccount(
+		config: IIotaConfig,
+		vaultConnector: IVaultConnector,
+		serviceIdentity: string,
+		client: IotaClient,
+		recipientAddress: string,
+		amount: bigint,
+		options?: IIotaResponseOptions
+	): Promise<IotaTransactionBlockResponse> {
+		Guards.object(this._CLASS_NAME, nameof(config.gasStation), config.gasStation);
+		Guards.object(this._CLASS_NAME, nameof(vaultConnector), vaultConnector);
+		Guards.stringValue(this._CLASS_NAME, nameof(serviceIdentity), serviceIdentity);
+		Guards.stringValue(this._CLASS_NAME, nameof(recipientAddress), recipientAddress);
+		Guards.bigint(this._CLASS_NAME, nameof(amount), amount);
+
+		try {
+			// Get the service account's address (this holds the funds to transfer)
+			const seed = await this.getSeed(config, vaultConnector, serviceIdentity);
+			const addresses = this.getAddresses(
+				seed,
+				config.coinType ?? this.DEFAULT_COIN_TYPE,
+				0,
+				0,
+				1,
+				false
+			);
+			const serviceAddress = addresses[0];
+
+			// Check service account has sufficient balance
+			const serviceBalance = await client.getBalance({ owner: serviceAddress });
+			if (BigInt(serviceBalance.totalBalance) < amount) {
+				throw new GeneralError(this._CLASS_NAME, "serviceAccountInsufficientBalance", {
+					serviceAddress,
+					available: serviceBalance.totalBalance,
+					required: amount.toString()
+				});
+			}
+
+			// Create the transfer transaction
+			const transaction = new Transaction();
+
+			// Get coins from service account
+			const serviceCoins = await client.getCoins({
+				owner: serviceAddress,
+				coinType: "0x2::iota::IOTA"
+			});
+
+			// Find suitable coin or split if needed
+			const suitableCoin = serviceCoins.data.find(coin => BigInt(coin.balance) >= amount);
+			if (!suitableCoin) {
+				throw new GeneralError(this._CLASS_NAME, "serviceAccountCoinFragmentation", {
+					serviceAddress,
+					availableCoins: serviceCoins.data.length,
+					required: amount.toString()
+				});
+			}
+
+			if (BigInt(suitableCoin.balance) === amount) {
+				// Transfer entire coin
+				transaction.transferObjects(
+					[transaction.object(suitableCoin.coinObjectId)],
+					transaction.pure.address(recipientAddress)
+				);
+			} else {
+				// Split coin and transfer the split portion
+				const [splitCoin] = transaction.splitCoins(transaction.object(suitableCoin.coinObjectId), [
+					transaction.pure.u64(amount)
+				]);
+				transaction.transferObjects([splitCoin], transaction.pure.address(recipientAddress));
+			}
+
+			// Execute as sponsored transaction (gas station pays gas, service account provides funds)
+			return await this.prepareAndPostGasStationTransaction(
+				config,
+				vaultConnector,
+				serviceIdentity, // Service account signs the transaction
+				client,
+				serviceAddress, // Service account is the sender
+				transaction,
+				options
+			);
+		} catch (error) {
+			if (error instanceof GeneralError && error.source === this._CLASS_NAME) {
+				throw error;
+			}
+
+			throw new GeneralError(
+				this._CLASS_NAME,
+				"gasStationTransferFailed",
+				{ serviceAddress: serviceIdentity, recipient: recipientAddress, amount: amount.toString() },
+				this.extractPayloadError(error)
+			);
+		}
+	}
+
+	/**
+	 * Get the gas station configuration.
+	 * @param config The configuration containing gas station settings.
+	 * @returns The gas station configuration.
+	 */
+	public static getGasStationConfig(config: IIotaConfig): IGasStationConfig {
+		return (
+			config.gasStation ?? {
+				gasStationUrl: "",
+				gasStationAuthToken: ""
+			}
+		);
 	}
 }
