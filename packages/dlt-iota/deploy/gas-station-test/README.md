@@ -34,38 +34,38 @@ We have successfully created a unified Docker solution that combines Redis and I
 
 # Run the unified container
 docker run -d \
-  --name twin-gas-station \
+  --name twin-gas-station-test \
   -p 6379:6379 \
   -p 9527:9527 \
   -p 9184:9184 \
-  twin-gas-station:latest
+  twin-gas-station-test:latest
 
 # Check container status
 docker ps
 
 # View logs
-docker logs twin-gas-station
+docker logs twin-gas-station-test
 
 # Stop the container
-docker stop twin-gas-station
-docker rm twin-gas-station
+docker stop twin-gas-station-test
+docker rm twin-gas-station-test
 ```
 
 ### Alternative: Direct Docker Build and Run
 
 ```bash
 # Build the image directly
-docker build -t twin-gas-station:latest .
+docker build -t twin-gas-station-test:latest .
 
 # Run with environment variables (if needed)
 docker run -d \
-  --name twin-gas-station \
+  --name twin-gas-station-test \
   -p 6379:6379 \
   -p 9527:9527 \
   -p 9184:9184 \
   -e REDIS_PORT=6379 \
   -e GAS_STATION_PORT=9527 \
-  twin-gas-station:latest
+  twin-gas-station-test:latest
 ```
 
 ### Service Details
@@ -147,8 +147,8 @@ docker buildx ls
 
 # Step 6: Now you can build multi-platform
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag twinfoundation/twin-gas-station:latest \
-  --tag twinfoundation/twin-gas-station:$(date +%Y%m%d) \
+  --tag twinfoundation/twin-gas-station-test:latest \
+  --tag twinfoundation/twin-gas-station-test:$(date +%Y%m%d) \
   --push .
 ```
 
@@ -163,8 +163,8 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 ```bash
 # Alternative manual approach (if build.sh doesn't work)
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --tag twinfoundation/twin-gas-station:latest \
-  --tag twinfoundation/twin-gas-station:$(date +%Y%m%d) \
+  --tag twinfoundation/twin-gas-station-test:latest \
+  --tag twinfoundation/twin-gas-station-test:$(date +%Y%m%d) \
   --push .
 ```
 
@@ -172,31 +172,31 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 
 ```bash
 # View container logs
-docker logs twin-gas-station
+docker logs twin-gas-station-test
 
 # View specific service logs within container
-docker exec twin-gas-station supervisorctl tail redis
-docker exec twin-gas-station supervisorctl tail gas-station
+docker exec twin-gas-station-test supervisorctl tail redis
+docker exec twin-gas-station-test supervisorctl tail gas-station
 
 # Check service status
-docker exec twin-gas-station supervisorctl status
+docker exec twin-gas-station-test supervisorctl status
 
 # Restart services within container
-docker exec twin-gas-station supervisorctl restart redis
-docker exec twin-gas-station supervisorctl restart gas-station
+docker exec twin-gas-station-test supervisorctl restart redis
+docker exec twin-gas-station-test supervisorctl restart gas-station
 ```
 
 ### Direct Service Testing
 
 ```bash
 # Test Redis connectivity
-docker exec twin-gas-station redis-cli ping
+docker exec twin-gas-station-test redis-cli ping
 
 # Test Gas Station API
-docker exec twin-gas-station curl -f http://localhost:9527/
+docker exec twin-gas-station-test curl -f http://localhost:9527/
 
 # Check health status
-docker exec twin-gas-station curl -f http://localhost:9527/health
+docker exec twin-gas-station-test curl -f http://localhost:9527/
 ```
 
 ### Data Persistence

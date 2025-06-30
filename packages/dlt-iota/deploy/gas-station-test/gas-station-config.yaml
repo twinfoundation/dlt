@@ -1,16 +1,16 @@
 signer-config:
   local:
-    keypair: AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f
+    keypair: ${GAS_STATION_KEYPAIR}
 rpc-host-ip: 0.0.0.0
-rpc-port: 9527
-metrics-port: 9184
+rpc-port: ${GAS_STATION_PORT}
+metrics-port: ${GAS_STATION_METRICS_PORT}
 storage-config:
   redis:
     redis_url: 'redis://localhost:${REDIS_PORT}'
-fullnode-url: 'https://api.testnet.iota.cafe'
+fullnode-url: '${IOTA_NODE_URL}'
 coin-init-config:
-  target-init-balance: 100000000
-  refresh-interval-sec: 86400
-daily-gas-usage-cap: 1500000000000
+  target-init-balance: ${TARGET_INIT_BALANCE}
+  refresh-interval-sec: ${REFRESH_INTERVAL}
+daily-gas-usage-cap: ${DAILY_GAS_CAP}
 access-controller:
   access-policy: disabled

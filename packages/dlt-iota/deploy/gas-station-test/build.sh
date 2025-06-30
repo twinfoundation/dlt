@@ -21,9 +21,9 @@ fi
 
 # Create a new builder instance if it doesn't exist
 BUILDER_NAME="twin-multiplatform-builder"
-if ! docker buildx inspect $BUILDER_NAME > /dev/null 2>&1; then
+if ! docker buildx inspect "$BUILDER_NAME" > /dev/null 2>&1; then
     echo "Creating new buildx builder: $BUILDER_NAME"
-    docker buildx create --name $BUILDER_NAME --driver docker-container
+    docker buildx create --name "$BUILDER_NAME" --driver docker-container
     echo "Builder created successfully"
 else
     echo "Builder $BUILDER_NAME already exists"
@@ -31,16 +31,44 @@ fi
 
 # Use the builder
 echo "Switching to builder: $BUILDER_NAME"
-docker buildx use $BUILDER_NAME
+docker buildx use "$BUILDER_NAME"
 
 # Verify builder supports multi-platform
 echo "Checking builder capabilities..."
-docker buildx ls | grep $BUILDER_NAME
+docker buildx ls | grep "$BUILDER_NAME"
+
+# Function to wait for a service to be ready
+wait_for_service() {
+    local service_name="$1"
+    local check_command="$2"
+    local max_attempts=60  # 60 seconds max
+    local attempt=1
+    
+    echo "Waiting for $service_name to be ready..."
+    
+    while [ $attempt -le $max_attempts ]; do
+        if eval "$check_command" >/dev/null 2>&1; then
+            echo "✅ $service_name is ready (took ${attempt}s)"
+            return 0
+        fi
+        
+        # Show progress every 5 seconds
+        if [ $((attempt % 5)) -eq 0 ]; then
+            echo "⏳ Still waiting for $service_name... (${attempt}s elapsed)"
+        fi
+        
+        sleep 1
+        ((attempt++))
+    done
+    
+    echo "❌ $service_name failed to start after ${max_attempts} seconds"
+    return 1
+}
 
 # Function to build locally for testing
 build_local() {
     echo "Building local image for testing..."
-    docker build -t $IMAGE_NAME:$VERSION .
+    docker build -t "$IMAGE_NAME:$VERSION" .
     echo "Local build completed: $IMAGE_NAME:$VERSION"
 }
 
@@ -58,8 +86,8 @@ build_multiplatform() {
     echo "Running build command..."
     docker buildx build \
         --platform $PLATFORMS \
-        --tag $DOCKER_HUB_REPO:$VERSION \
-        --tag $DOCKER_HUB_REPO:$(date +%Y%m%d) \
+        --tag "$DOCKER_HUB_REPO:$VERSION" \
+        --tag "$DOCKER_HUB_REPO:$(date +%Y%m%d)" \
         --push \
         .
     
@@ -95,18 +123,33 @@ test_local() {
         -p 6379:6379 \
         -p 9527:9527 \
         -p 9184:9184 \
-        $IMAGE_NAME:$VERSION
+        "$IMAGE_NAME:$VERSION"
     
-    # Wait for services to start
-    echo "Waiting for services to start..."
-    sleep 30
+    # Wait for services to start using polling
+    if ! wait_for_service "Redis" "docker exec twin-gas-station-test redis-cli ping"; then
+        echo "❌ Redis test failed"
+        docker logs twin-gas-station-test
+        return 1
+    fi
+    
+    if ! wait_for_service "Gas Station" "docker exec twin-gas-station-test curl -f http://localhost:9527/"; then
+        echo "❌ Gas Station test failed"
+        docker logs twin-gas-station-test
+        return 1
+    fi
+    
+    echo "✅ All services are ready!"
+    echo ""
+    
+    # Additional verification tests
+    echo "Running final verification tests..."
     
     # Test Redis
     echo "Testing Redis connection..."
     if docker exec twin-gas-station-test redis-cli ping; then
         echo "✅ Redis is working"
     else
-        echo "❌ Redis test failed"
+        echo "❌ Redis verification failed"
         docker logs twin-gas-station-test
         return 1
     fi
@@ -116,7 +159,7 @@ test_local() {
     if docker exec twin-gas-station-test curl -f http://localhost:9527/ 2>/dev/null; then
         echo "✅ Gas Station is working"
     else
-        echo "❌ Gas Station test failed"
+        echo "❌ Gas Station verification failed"
         docker logs twin-gas-station-test
         return 1
     fi
@@ -173,12 +216,12 @@ case "$1" in
         
         # Step 2: Create builder if it doesn't exist
         BUILDER_NAME="twin-multiplatform-builder"
-        if ! docker buildx inspect $BUILDER_NAME > /dev/null 2>&1; then
+        if ! docker buildx inspect "$BUILDER_NAME" > /dev/null 2>&1; then
             echo "Creating new buildx builder: $BUILDER_NAME"
-            docker buildx create --name $BUILDER_NAME --driver docker-container --use
+            docker buildx create --name "$BUILDER_NAME" --driver docker-container --use
         else
             echo "Builder $BUILDER_NAME already exists, switching to it..."
-            docker buildx use $BUILDER_NAME
+            docker buildx use "$BUILDER_NAME"
         fi
         
         # Step 3: Bootstrap the builder
@@ -192,7 +235,7 @@ case "$1" in
         docker buildx ls
         echo ""
         echo "🔍 Supported platforms:"
-        docker buildx inspect $BUILDER_NAME | grep "Platforms:"
+        docker buildx inspect "$BUILDER_NAME" | grep "Platforms:"
         echo ""
         echo "You can now run: ./build.sh publish"
         ;;

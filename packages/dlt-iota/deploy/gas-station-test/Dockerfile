@@ -1,8 +1,8 @@
 # TWIN Gas Station Complete - Multi-platform unified image
 # Combines Redis and IOTA Gas Station in a single container
 
-# Use official gas station image as base
-FROM iotaledger/gas-station:latest
+# Use official gas station image as base - pinned to specific version for stability
+FROM iotaledger/gas-station:0.2
 
 # Switch to root for installation
 USER root
@@ -22,19 +22,24 @@ RUN mkdir -p \
     /var/log/supervisor \
     /config \
     /data/redis \
-    /var/lib/redis
+    /var/lib/redis \
+    /app
 
 # Environment variables with defaults
 ENV REDIS_PORT=6379 \
     REDIS_MAXMEMORY=256mb \
     GAS_STATION_PORT=9527 \
     GAS_STATION_METRICS_PORT=9184 \
-    GAS_STATION_AUTH=qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI= \
     IOTA_NODE_URL=https://api.testnet.iota.cafe \
-    GAS_STATION_KEYPAIR=AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f \
     TARGET_INIT_BALANCE=100000000 \
     DAILY_GAS_CAP=1500000000000 \
     REFRESH_INTERVAL=86400
+
+# Security-sensitive variables with test defaults
+# WARNING: These are TEST VALUES ONLY - override for production use!
+# Usage: docker run -e GAS_STATION_AUTH=your_auth -e GAS_STATION_KEYPAIR=your_keypair image
+ENV GAS_STATION_AUTH=qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI= \
+    GAS_STATION_KEYPAIR=AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f
 
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -46,7 +51,7 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create redis user and set permissions
-RUN useradd --system --home-dir /var/lib/redis --shell /bin/false redis || true && \
+RUN if ! id -u redis >/dev/null 2>&1; then useradd --system --home-dir /var/lib/redis --shell /bin/false redis; fi && \
     chown -R redis:redis /data/redis /var/lib/redis
 
 # Expose ports
