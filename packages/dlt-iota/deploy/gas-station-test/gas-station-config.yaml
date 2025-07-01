@@ -1,0 +1,16 @@
+signer-config:
+  local:
+    keypair: ${GAS_STATION_KEYPAIR}
+rpc-host-ip: 0.0.0.0
+rpc-port: ${GAS_STATION_PORT}
+metrics-port: ${GAS_STATION_METRICS_PORT}
+storage-config:
+  redis:
+    redis_url: 'redis://localhost:${REDIS_PORT}'
+fullnode-url: '${IOTA_NODE_URL}'
+coin-init-config:
+  target-init-balance: ${TARGET_INIT_BALANCE}
+  refresh-interval-sec: ${REFRESH_INTERVAL}
+daily-gas-usage-cap: ${DAILY_GAS_CAP}
+access-controller:
+  access-policy: disabled
