@@ -50,59 +50,42 @@ runs:
         sudo mv sui /usr/local/bin/sui
         sui --version
 
-    - name: Start Redis
+    - name: Start Twin Gas Station Test Environment
       shell: bash
       run: |
-        docker run -d --name redis -p 6379:6379 redis:7-alpine
+        echo "Starting Twin Gas Station Test Environment (includes Redis + Gas Station)..."
+        docker run -d --name twin-gas-station-test \
+          -p 6379:6379 -p 9527:9527 -p 9184:9184 \
+          -e IOTA_NODE_URL="${{ inputs.test-node-endpoint }}" \
+          -e GAS_STATION_AUTH="${{ inputs.gas-station-auth }}" \
+          twinfoundation/twin-gas-station-test:latest
 
-    - name: Create gas station config
+    - name: Wait for Services to be Ready
       shell: bash
       run: |
-        node -e "
-        const fs = require('fs');
-        const config = \`signer-config:
-          local:
-            keypair: AKT1Ghtd+yNbI9fFCQin3FpiGx8xoUdJMe7iAhoFUm4f
-        rpc-host-ip: 0.0.0.0
-        rpc-port: 9527
-        metrics-port: 9184
-        storage-config:
-          redis:
-            redis_url: \"redis://127.0.0.1:6379\"
-        fullnode-url: \"${{ inputs.test-node-endpoint }}\"
-        coin-init-config:
-          target-init-balance: 100000000
-          refresh-interval-sec: 86400
-        daily-gas-usage-cap: 1500000000000
-        access-controller:
-          access-policy: disabled
-        \`;
-        fs.writeFileSync('gas-station-config.yaml', config);
-        "
+        echo "Waiting for Redis and Gas Station to start..."
 
-    - name: Start IOTA Gas Station
-      shell: bash
-      run: |
-        docker run -d --name gas-station \
-          -p 9527:9527 -p 9184:9184 \
-          -v $(pwd)/gas-station-config.yaml:/config/config.yaml \
-          --network host \
-          -e GAS_STATION_AUTH=${{ inputs.gas-station-auth }} \
-          iotaledger/gas-station:latest \
-          --config-path /config/config.yaml
+        # Wait for Redis
+        for i in {1..30}; do
+          if docker exec twin-gas-station-test redis-cli ping 2>/dev/null | grep -q PONG; then
+            echo "✅ Redis is ready!"
+            break
+          fi
+          echo "Attempt $i: Redis not ready yet, waiting..."
+          sleep 2
+        done
 
-    - name: Wait for Gas Station
-      shell: bash
-      run: |
-        echo "Waiting for gas station to start..."
+        # Wait for Gas Station
         for i in {1..30}; do
           if curl -f http://localhost:9527/ 2>/dev/null; then
-            echo "Gas station is ready!"
+            echo "✅ Gas station is ready!"
             break
           fi
           echo "Attempt $i: Gas station not ready yet, waiting..."
-          sleep 5
+          sleep 2
         done
+
+        echo "✅ All services are ready!"
 
     - name: Fund Gas Station Sponsor
       shell: bash

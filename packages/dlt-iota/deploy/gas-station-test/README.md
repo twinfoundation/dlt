@@ -1,10 +1,10 @@
 # TWIN Gas Station Complete - Unified Docker Setup
 
-## 🎉 Success! Unified Gas Station Solution
+## Overview
 
-We have successfully created a unified Docker solution that combines Redis and IOTA Gas Station into a single, easy-to-use setup for the TWIN framework testing environment.
+This unified Docker solution combines Redis and IOTA Gas Station into a single container for seamless TWIN framework testing and development.
 
-## 📋 What Was Accomplished
+## Features
 
 ### 1. **Problem Solved**
 
