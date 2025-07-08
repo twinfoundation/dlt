@@ -1,4 +1,4 @@
 {
-	"packages/dlt-iota": "0.0.0",
-	"apps/move-to-json": "0.0.0"
+	"packages/dlt-iota": "0.0.1",
+	"apps/move-to-json": "0.0.1"
 }
