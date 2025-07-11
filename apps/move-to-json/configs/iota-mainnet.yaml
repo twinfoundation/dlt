@@ -1,0 +1,24 @@
+# IOTA Mainnet Network Configuration
+network: mainnet
+platform: iota
+rpc:
+  url: https://api.mainnet.iota.cafe
+  timeout: 60000
+deployment:
+  gasBudget: 100000000
+  confirmationTimeout: 120
+  wallet:
+    mnemonicId: mainnet-deployer-mnemonic
+    addressIndex: 0
+  gasStation:
+    url: ${MAINNET_GAS_STATION_URL}
+    authToken: ${MAINNET_GAS_STATION_AUTH}
+  security:
+    requireConfirmation: true
+    backupPackageIds: true
+contracts:
+  nft:
+    moduleName: nft
+    dependencies: ["0x1", "0x2"]
+    packageController:
+      addressIndex: 0 

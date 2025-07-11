@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdir, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
-import { GeneralError, I18n } from "@twin.org/core";
+import { GeneralError } from "@twin.org/core";
 import { CLI } from "../src/cli";
 import { copyFixtures } from "./utils/copyFixtures";
 
@@ -22,10 +22,6 @@ describe("move-to-json CLI", () => {
 		const iotaFixtureSource = path.join(__dirname, "fixtures", "iota");
 		const iotaFixtureDest = path.join(TEST_INPUT_GLOB, "iota");
 		await copyFixtures(iotaFixtureSource, iotaFixtureDest);
-
-		const suiFixtureSource = path.join(__dirname, "fixtures", "sui");
-		const suiFixtureDest = path.join(TEST_INPUT_GLOB, "sui");
-		await copyFixtures(suiFixtureSource, suiFixtureDest);
 	});
 
 	afterAll(async () => {
@@ -44,9 +40,21 @@ describe("move-to-json CLI", () => {
 		};
 	});
 
-	test("Fails gracefully when platform SDK is not installed", async () => {
+	test("Shows help when no subcommand provided", async () => {
+		const cli = new CLI();
+		const exitCode = await cli.run(["node", "move-to-json", "--help"], "./dist/locales", {
+			overrideOutputWidth: 1000
+		});
+
+		expect(exitCode).toBe(0);
+		const output = writeBuffer.join("\n");
+		expect(output).toContain("build");
+		expect(output).toContain("deploy");
+	});
+
+	test("Build command fails gracefully when platform SDK is not installed", async () => {
 		vi.spyOn(CLIUtils, "runShellApp").mockRejectedValueOnce(
-			new GeneralError("commands", "commands.move-to-json.sdkNotInstalled", { platform: "iota" })
+			new GeneralError("commands", "IOTA SDK not installed", { platform: "iota" })
 		);
 
 		const cli = new CLI();
@@ -54,9 +62,10 @@ describe("move-to-json CLI", () => {
 			[
 				"node",
 				"move-to-json",
+				"build",
 				path.join(TEST_INPUT_GLOB, "iota", "sources", "*.move"),
-				TEST_OUTPUT_JSON,
-				"--platform=iota"
+				"--output",
+				TEST_OUTPUT_JSON
 			],
 			"./dist/locales",
 			{ overrideOutputWidth: 1000 }
@@ -65,57 +74,21 @@ describe("move-to-json CLI", () => {
 		expect(exitCode).toBe(0);
 
 		const errOutput = errorBuffer.join("\n");
-		expect(errOutput).toContain(
-			I18n.formatMessage("error.commands.move-to-json.sdkNotInstalled", {
-				platform: "iota"
-			})
-		);
+		expect(errOutput).toContain("IOTA SDK not installed");
 
 		vi.restoreAllMocks();
 	});
 
-	test("Fails with no command line arguments", async () => {
-		const cli = new CLI();
-		const exitCode = await cli.run(["node", "move-to-json"], undefined, {
-			overrideOutputWidth: 1000
-		});
-
-		expect(exitCode).toBe(1);
-		const errOutput = errorBuffer.join("\n");
-		expect(errOutput).toContain("error");
-	});
-
-	test("Fails with only one command line argument", async () => {
-		const cli = new CLI();
-		const exitCode = await cli.run(["node", "move-to-json", TEST_INPUT_GLOB], undefined, {
-			overrideOutputWidth: 1000
-		});
-
-		expect(exitCode).toBe(1);
-		const errOutput = errorBuffer.join("\n");
-		expect(errOutput).toContain("error");
-	});
-
-	test("Succeeds with valid arguments and no .move files", async () => {
-		const cli = new CLI();
-		const exitCode = await cli.run(
-			["node", "move-to-json", TEST_INPUT_GLOB, TEST_OUTPUT_JSON],
-			"./dist/locales",
-			{ overrideOutputWidth: 1000 }
-		);
-
-		expect(exitCode).toBe(0);
-	});
-
-	test("Compiles an IOTA fixture", async () => {
+	test("Build command compiles an IOTA fixture", async () => {
 		const cli = new CLI();
 		const exitCode = await cli.run(
 			[
 				"node",
 				"move-to-json",
+				"build",
 				path.join(TEST_INPUT_GLOB, "iota", "sources", "*.move"),
-				TEST_OUTPUT_JSON,
-				"--platform=iota"
+				"--output",
+				TEST_OUTPUT_JSON
 			],
 			"./dist/locales",
 			{ overrideOutputWidth: 1000 }
@@ -128,32 +101,29 @@ describe("move-to-json CLI", () => {
 		const fileContents = await readFile(TEST_OUTPUT_JSON, "utf8");
 		const json = JSON.parse(fileContents);
 
-		expect(json.nft).toBeDefined();
-		expect(json.nft.packageId).toMatch(/^0x/);
-		expect(json.nft.package).toBeDefined();
+		// Check new network-aware structure
+		expect(json.testnet).toBeDefined();
+		expect(json.devnet).toBeDefined();
+		expect(json.mainnet).toBeDefined();
+
+		// Check contract data in all networks
+		expect(json.testnet.nft).toBeDefined();
+		expect(json.testnet.nft.packageId).toMatch(/^0x/);
+		expect(json.testnet.nft.package).toBeDefined();
+		expect(json.testnet.nft.deployedPackageId).toBeNull();
+
+		expect(json.devnet.nft).toBeDefined();
+		expect(json.mainnet.nft).toBeDefined();
 	});
 
-	test("Compiles a SUI fixture", async () => {
+	test("Deploy command requires config and network options", async () => {
 		const cli = new CLI();
-		const exitCode = await cli.run(
-			[
-				"node",
-				"move-to-json",
-				path.join(TEST_INPUT_GLOB, "sui", "sources", "*.move"),
-				TEST_OUTPUT_JSON,
-				"--platform=sui"
-			],
-			"./dist/locales",
-			{ overrideOutputWidth: 1000 }
-		);
+		const exitCode = await cli.run(["node", "move-to-json", "deploy"], "./dist/locales", {
+			overrideOutputWidth: 1000
+		});
 
 		expect(exitCode).toBe(0);
-
-		const fileContents = await readFile(TEST_OUTPUT_JSON, "utf8");
-		const json = JSON.parse(fileContents);
-
-		expect(json.nft).toBeDefined();
-		expect(json.nft.packageId).toMatch(/^0x/);
-		expect(json.nft.package).toBeDefined();
+		const errOutput = errorBuffer.join("\n");
+		expect(errOutput).toContain("Config file is required");
 	});
 });

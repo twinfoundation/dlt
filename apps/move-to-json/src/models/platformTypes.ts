@@ -9,12 +9,7 @@ export const PlatformTypes = {
 	/**
 	 * IOTA.
 	 */
-	Iota: "iota",
-
-	/**
-	 * SUI.
-	 */
-	Sui: "sui"
+	Iota: "iota"
 } as const;
 
 /**

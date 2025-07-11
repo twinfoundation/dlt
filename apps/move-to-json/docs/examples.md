@@ -1,109 +1,187 @@
-# @twin.org/move-to-json - Examples
+# Move to JSON CLI Examples
 
-## Move to JSON CLI
+This CLI compiles IOTA Move contracts into Base64-encoded modules, computes package IDs (SHA3-256), and provides network-specific deployment capabilities with separate build and deploy commands.
 
-This CLI compiles one or more Move contracts (for either IOTA or SUI) into Base64-encoded modules, computes a package ID (SHA3-256), and merges the resulting data into a JSON file.
+## Prerequisites
 
-First install the tool with the following script.
+- Node.js (v20+)
+- IOTA CLI installed in your PATH for compilation. You can download the IOTA CLI by visiting the [IOTA CLI GitHub Releases](https://github.com/iotaledger/iota/releases) page and downloading the appropriate binary for your operating system.
 
-```shell
-npm install @twin.org/move-to-json
+## Command Structure
+
+The tool now uses separate `build` and `deploy` subcommands:
+
+- **`build`** - Compiles Move contracts and generates network-aware JSON structure
+- **`deploy`** - Deploys compiled contracts to specified network using configuration files
+
+## Build Command
+
+### Basic Usage
+
+```bash
+# Build contracts and generate network-aware JSON
+move-to-json build "src/contracts/**/*.move" --output compiled-modules.json
 ```
 
-## Requirements
+### What it does:
 
-- IOTA Move CLI or SUI Move CLI installed in your PATH (for compilation). You can download the IOTA CLI by visiting the [IOTA CLI GitHub Releases](https://github.com/iotaledger/iota/releases) page and downloading the appropriate version for your operating system.
+- Find all .move files matching the glob pattern
+- Compile each file using the IOTA Move compiler  
+- Compute deterministic package IDs from compiled bytecode
+- Generate network-aware JSON structure with testnet, devnet, and mainnet sections
+- Each network contains identical packageId and package data, with deployedPackageId initially set to null
 
-You can then run the tool from the command line e.g.
-
-```shell
-move-to-json
-```
-
-You should see the following response:
-
-```shell
-Starting Move to JSON
-=====================
-
-Usage:
-        move-to-json <inputGlob> <outputJson> [--platform=<platform>]
-Error: You must specify both input glob and output JSON path
-```
-
-As you can see, you must provide both an input glob pattern that matches your Move source files and an output JSON file path.
-
-## Example Usage
-
-A typical command looks like this:
-
-```shell
-move-to-json "./src/contracts/**/*.move" ./src/contracts/compiled-modules.json --platform=iota
-```
-
-This will:
-
-- Find all .move files in src/contracts and its subdirectories
-- Compile each file using the IOTA Move compiler (or SUI if --platform=sui)
-- Create or update compiled-modules.json with the compiled bytecode
-
-## Expected Project Structure
-
-The tool expects a standard Move project structure:
-
-```markdown
-myProject/
-Move.toml
-sources/
-myContract.move
-myOtherContract.move
-```
-
-Where `myProject` is considered the `project root`:
-
-- The CLI runs `iota move build` or `sui move build` in the project root (the folder containing Move.toml).
-- The compiled .mv bytecode modules are placed under `build/<snake_case_package_name>/bytecode_modules`.
-- The CLI loads these .mv files, computes a package ID (SHA3-256), and Base64-encodes them.
-
-However, you can pass any glob pattern that matches one or more .move files. For each file, the CLI will move up one directory from wherever that file is located until it finds the Move.toml. As long as each .move file resides in a standard Move project folder (meaning you do have a Move.toml in its parent directory or above), this tool can find and build the contract.
-
-For example, if your source is:
-
-```markdown
-./somewhere/nested/sources/myContract.move
-./somewhere/nested/Move.toml
-```
-
-Then your glob might look like:
-
-```shell
-move-to-json "./somewhere/nested/sources/*.move" ./build/contracts.json
-```
-
-The CLI will automatically detect the project root as `./somewhere/nested` and run the Move compiler there.
-
-## Output JSON Format
-
-The resulting JSON file (e.g. `./src/contracts/contracts.json`) will be updated with an entry for each contract file. The key is the kebab-cased file name (e.g. `myContract.move` → `my-contract`).
-
-Each entry has:
-
-- packageId – A 0x-prefix hex string (computed SHA3-256 of all compiled modules).
-- package – Either a single Base64-encoded string (if there is one compiled module) or an array of Base64 strings (if multiple modules).
-
-An example snippet of the final JSON might look like:
+### Example Output Structure
 
 ```json
 {
-  "my-contract": {
-    "packageId": "0xabc123...4f9",
-    "package": "AAECAPN..."
+  "buildInfo": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "version": "1.0.0",
+    "compiler": "move-to-json-v2"
   },
-  "my-other-contract": {
-    "packageId": "0xdef456ff...b81",
-    "package": ["AAAEFW...", "AAABUK..."]
+  "testnet": {
+    "nft": {
+      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+      "package": "oRzrCwYAAAAKAQAKAgoQ...",
+      "deployedPackageId": null
+    }
+  },
+  "devnet": {
+    "nft": {
+      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+      "package": "oRzrCwYAAAAKAQAKAgoQ...",
+      "deployedPackageId": null
+    }
+  },
+  "mainnet": {
+    "nft": {
+      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+      "package": "oRzrCwYAAAAKAQAKAgoQ...",
+      "deployedPackageId": null
+    }
   }
 }
 ```
 
-If the JSON file already exists, the newly compiled contracts are merged in (existing entries are preserved unless they share the same key, in which case they are overwritten).
+## Deploy Command
+
+### Basic Usage
+
+```bash
+# Deploy to testnet
+move-to-json deploy --config config/iota-testnet.yaml --network testnet
+
+# Deploy to mainnet with force flag
+move-to-json deploy --config config/iota-mainnet.yaml --network mainnet --force
+
+# Dry run (simulate without deploying)
+move-to-json deploy --config config/iota-testnet.yaml --network testnet --dry-run
+```
+
+### Network Configuration Files
+
+Create YAML configuration files for each network:
+
+#### testnet configuration (config/iota-testnet.yaml):
+```yaml
+network: testnet
+platform: iota
+rpc:
+  url: https://api.testnet.iota.cafe
+  timeout: 60000
+deployment:
+  gasBudget: 50000000
+  confirmationTimeout: 60
+  wallet:
+    mnemonicId: deployer-mnemonic
+    addressIndex: 0
+  gasStation:
+    url: https://gas-station.testnet.iota.cafe
+    authToken: ${GAS_STATION_AUTH}
+contracts:
+  nft:
+    moduleName: nft
+    dependencies: ["0x1", "0x2"]
+```
+
+#### mainnet configuration (config/iota-mainnet.yaml):
+```yaml
+network: mainnet
+platform: iota
+rpc:
+  url: https://api.mainnet.iota.cafe
+deployment:
+  gasBudget: 100000000
+  wallet:
+    mnemonicId: mainnet-deployer-mnemonic
+    addressIndex: 0
+  security:
+    requireConfirmation: true
+    backupPackageIds: true
+```
+
+### What the deploy command does:
+
+1. **Environment Preparation**: Cleans build artifacts and updates Move.toml for target network
+2. **Configuration Validation**: Loads and validates network configuration
+3. **Contract Deployment**: Uses IOTA CLI to publish contracts with appropriate gas budgets
+4. **JSON Updates**: Updates the compiled-modules.json with actual deployed package IDs
+
+## Complete Workflow Example
+
+```bash
+# 1. Build contracts for all networks
+move-to-json build "src/contracts/**/*.move" --output src/contracts/compiled-modules.json
+
+# 2. Deploy to testnet first
+move-to-json deploy --config config/iota-testnet.yaml --network testnet
+
+# 3. Test and validate on testnet
+
+# 4. Deploy to mainnet
+move-to-json deploy --config config/iota-mainnet.yaml --network mainnet
+```
+
+## Package.json Integration
+
+Update your package.json scripts:
+
+```json
+{
+  "scripts": {
+    "build:contracts": "move-to-json build \"src/contracts/**/*.move\" --output src/contracts/compiled-modules.json",
+    "deploy:testnet": "move-to-json deploy --config config/iota-testnet.yaml --network testnet",
+    "deploy:devnet": "move-to-json deploy --config config/iota-devnet.yaml --network devnet", 
+    "deploy:mainnet": "move-to-json deploy --config config/iota-mainnet.yaml --network mainnet"
+  }
+}
+```
+
+## Updated Import Pattern
+
+In your TypeScript code, access network-specific deployed contracts:
+
+```typescript
+import compiledModulesJson from './contracts/compiled-modules.json';
+
+// Get current network (from environment, config, etc.)
+const network = getCurrentNetwork(); // 'testnet', 'devnet', 'mainnet'
+
+// Access deployed package ID for the current network
+const deployedPackageId = compiledModulesJson[network].nft.deployedPackageId;
+const modules = compiledModulesJson[network].nft.package;
+
+// Use in your application
+const result = await iotaClient.publish({
+  modules: [modules],
+  packageId: deployedPackageId
+});
+```
+
+## Security Considerations
+
+- **Mainnet deployments** require careful configuration with appropriate gas budgets
+- **Wallet credentials** should be stored securely using environment variables
+- **Gas station integration** provides sponsored transactions for supported networks
+- **Dry run mode** allows testing deployment logic without actual execution

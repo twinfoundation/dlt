@@ -24,7 +24,7 @@ Additional options, e.g. platform.
 
 #### platform?
 
-[`PlatformTypes`](../type-aliases/PlatformTypes.md)
+`"iota"`
 
 The platform type.
 

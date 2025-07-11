@@ -36,7 +36,8 @@
 		"@twin.org/crypto": "next",
 		"@twin.org/nameof": "next",
 		"commander": "14.0.0",
-		"fast-glob": "3.3.3"
+		"fast-glob": "3.3.3",
+		"yaml": "^2.8.0"
 	},
 	"devDependencies": {
 		"@twin.org/merge-locales": "next",

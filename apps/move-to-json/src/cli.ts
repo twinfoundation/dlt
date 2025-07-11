@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLIBase } from "@twin.org/cli-core";
 import type { Command } from "commander";
-import { buildCommandMoveToJson } from "./commands/moveToJson";
+import { buildCommandBuild } from "./commands/build";
+import { buildCommandDeploy } from "./commands/deploy";
 
 /**
  * The main entry point for the Move to JSON CLI.
@@ -44,6 +45,7 @@ export class CLI extends CLIBase {
 	 * @param program The root program command.
 	 */
 	protected configureRoot(program: Command): void {
-		buildCommandMoveToJson(program);
+		buildCommandBuild(program);
+		buildCommandDeploy(program);
 	}
 }

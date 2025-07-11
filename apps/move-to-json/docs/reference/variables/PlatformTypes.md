@@ -11,9 +11,3 @@ The platform types.
 > `readonly` **Iota**: `"iota"` = `"iota"`
 
 IOTA.
-
-### Sui
-
-> `readonly` **Sui**: `"sui"` = `"sui"`
-
-SUI.

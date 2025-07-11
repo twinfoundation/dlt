@@ -10,3 +10,10 @@ coverage
 **/.tmp
 .env.dev
 vitest.config.ts.timestamp*
+
+# Move contract build artifacts
+**/build/
+**/Move.lock
+**/Move.toml.copy
+**/.coverage/
+**/.trace/
