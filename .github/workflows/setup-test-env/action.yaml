@@ -1,29 +1,11 @@
-name: 'Setup DLT Testing Environment'
-description: 'Sets up Redis, IOTA CLI, SUI CLI, and Gas Station with proper configuration for DLT testing'
+name: 'Setup Testing Environment'
+description: 'Set up the testing environment for running tests from the build workflow.'
 
 inputs:
-  test-mnemonic:
-    description: 'Test mnemonic for gas station'
+  package:
+    description: 'The package to set up the test environment for.'
     required: true
-  test-node-endpoint:
-    description: 'IOTA testnet node endpoint'
-    required: false
-    default: 'https://api.testnet.iota.cafe'
-  test-faucet-endpoint:
-    description: 'IOTA testnet faucet endpoint'
-    required: false
-    default: 'https://faucet.testnet.iota.cafe/gas'
-  gas-station-auth:
-    description: 'Gas station authentication token'
-    required: true
-
-outputs:
-  gas-station-url:
-    description: 'Gas station URL for tests'
-    value: 'http://localhost:9527'
-  redis-url:
-    description: 'Redis URL for tests'
-    value: 'redis://127.0.0.1:6379'
+    default: 'all'
 
 runs:
   using: 'composite'
@@ -56,8 +38,8 @@ runs:
         echo "Starting Twin Gas Station Test Environment (includes Redis + Gas Station)..."
         docker run -d --name twin-gas-station-test \
           -p 6379:6379 -p 9527:9527 -p 9184:9184 \
-          -e IOTA_NODE_URL="${{ inputs.test-node-endpoint }}" \
-          -e GAS_STATION_AUTH="${{ inputs.gas-station-auth }}" \
+          -e IOTA_NODE_URL="https://api.testnet.iota.cafe" \
+          -e GAS_STATION_AUTH="qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI=" \
           twinfoundation/twin-gas-station-test:latest
 
     - name: Wait for Services to be Ready
@@ -93,7 +75,7 @@ runs:
         echo "Getting sponsor address from gas station..."
         SPONSOR_RESPONSE=$(curl -s -X POST http://localhost:9527/v1/reserve_gas \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer ${{ inputs.gas-station-auth }}" \
+          -H "Authorization: Bearer qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI=" \
           -d '{"gas_budget": 10000000, "reserve_duration_secs": 10}')
 
         SPONSOR_ADDRESS=$(echo "$SPONSOR_RESPONSE" | jq -r '.result.sponsor_address')
@@ -101,7 +83,7 @@ runs:
 
         if [ "$SPONSOR_ADDRESS" != "null" ] && [ -n "$SPONSOR_ADDRESS" ]; then
           echo "Funding sponsor address with IOTA faucet..."
-          curl -X POST "${{ inputs.test-faucet-endpoint }}" \
+          curl -X POST "https://faucet.testnet.iota.cafe/gas" \
             -H "Content-Type: application/json" \
             -d "{\"FixedAmountRequest\":{\"recipient\":\"$SPONSOR_ADDRESS\"}}" || echo "Faucet funding may have failed, but continuing..."
           
@@ -111,7 +93,7 @@ runs:
           echo "Verifying gas station can reserve gas after funding..."
           TEST_RESPONSE=$(curl -s -X POST http://localhost:9527/v1/reserve_gas \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ inputs.gas-station-auth }}" \
+            -H "Authorization: Bearer qEyCL6d9BKKFl/tfDGAKeGFkhUlf7FkqiGV7Xw4JUsI=" \
             -d '{"gas_budget": 50000000, "reserve_duration_secs": 30}')
           
           if echo "$TEST_RESPONSE" | jq -e '.result' > /dev/null; then
