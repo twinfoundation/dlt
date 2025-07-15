@@ -18,5 +18,7 @@
 
 ## Functions
 
-- [buildCommandMoveToJson](functions/buildCommandMoveToJson.md)
-- [actionCommandMoveToJson](functions/actionCommandMoveToJson.md)
+- [buildCommandBuild](functions/buildCommandBuild.md)
+- [actionCommandBuild](functions/actionCommandBuild.md)
+- [buildCommandDeploy](functions/buildCommandDeploy.md)
+- [actionCommandDeploy](functions/actionCommandDeploy.md)

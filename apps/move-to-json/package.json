@@ -36,6 +36,7 @@
 		"@twin.org/crypto": "next",
 		"@twin.org/nameof": "next",
 		"commander": "14.0.0",
+		"dotenv": "16.5.0",
 		"fast-glob": "3.3.3",
 		"yaml": "^2.8.0"
 	},

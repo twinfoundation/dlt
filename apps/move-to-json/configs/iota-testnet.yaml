@@ -8,14 +8,5 @@ deployment:
   gasBudget: 50000000
   confirmationTimeout: 60
   wallet:
-    mnemonicId: deployer-mnemonic     # Vault key for deployment mnemonic
+    mnemonicId: deployer-mnemonic
     addressIndex: 0
-  gasStation:                         # Optional gas station configuration
-    url: https://gas-station.testnet.iota.cafe
-    authToken: ${GAS_STATION_AUTH}   # Environment variable
-contracts:
-  nft:
-    moduleName: nft
-    dependencies: ["0x1", "0x2"]
-    packageController:
-      addressIndex: 0                 # Address index for package controller 

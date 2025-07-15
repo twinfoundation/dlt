@@ -8,6 +8,7 @@ node_modules
 coverage
 *.tgz
 **/.tmp
+.env
 .env.dev
 vitest.config.ts.timestamp*
 

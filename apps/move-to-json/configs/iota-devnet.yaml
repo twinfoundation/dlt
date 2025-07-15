@@ -10,12 +10,3 @@ deployment:
   wallet:
     mnemonicId: devnet-deployer-mnemonic
     addressIndex: 0
-  gasStation:
-    url: https://gas-station.devnet.iota.cafe
-    authToken: ${DEVNET_GAS_STATION_AUTH}
-contracts:
-  nft:
-    moduleName: nft
-    dependencies: ["0x1", "0x2"]
-    packageController:
-      addressIndex: 0 

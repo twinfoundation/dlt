@@ -10,15 +10,3 @@ deployment:
   wallet:
     mnemonicId: mainnet-deployer-mnemonic
     addressIndex: 0
-  gasStation:
-    url: ${MAINNET_GAS_STATION_URL}
-    authToken: ${MAINNET_GAS_STATION_AUTH}
-  security:
-    requireConfirmation: true
-    backupPackageIds: true
-contracts:
-  nft:
-    moduleName: nft
-    dependencies: ["0x1", "0x2"]
-    packageController:
-      addressIndex: 0 

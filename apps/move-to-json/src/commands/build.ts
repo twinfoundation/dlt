@@ -7,6 +7,7 @@ import { Converter, GeneralError, StringHelper } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
 import type { Command } from "commander";
 import FastGlob from "fast-glob";
+import type { NetworkTypes } from "../models/networkTypes";
 
 /**
  * Build the build command to be consumed by the CLI.
@@ -15,8 +16,11 @@ import FastGlob from "fast-glob";
 export function buildCommandBuild(program: Command): void {
 	program
 		.command("build")
-		.description("Compile Move contracts and generate network-aware JSON structure")
+		.description(
+			"Compile Move contracts for specified network and generate network-aware JSON structure"
+		)
 		.argument("<inputGlob>", "A glob pattern that matches one or more Move files")
+		.requiredOption("--network <network>", "Target network (testnet/devnet/mainnet)")
 		.option("--output <file>", "Output file for compiled modules JSON", "compiled-modules.json")
 		.action(async (inputGlob, opts) => {
 			await actionCommandBuild(inputGlob, opts);
@@ -27,13 +31,29 @@ export function buildCommandBuild(program: Command): void {
  * Action for the build command.
  * @param inputGlob A glob pattern that matches one or more Move files
  * @param opts Additional options.
+ * @param opts.network Target network (testnet/devnet/mainnet).
  * @param opts.output Where we store the final compiled modules.
  */
 export async function actionCommandBuild(
 	inputGlob: string,
-	opts: { output?: string }
+	opts: { network?: string; output?: string }
 ): Promise<void> {
 	try {
+		if (!opts.network) {
+			throw new GeneralError("commands", "Network parameter is required", {});
+		}
+
+		const validNetworks: NetworkTypes[] = ["testnet", "devnet", "mainnet"];
+		if (!validNetworks.includes(opts.network as NetworkTypes)) {
+			throw new GeneralError(
+				"commands",
+				`Invalid network: ${opts.network}. Must be one of: ${validNetworks.join(", ")}`,
+				{}
+			);
+		}
+
+		const network = opts.network as NetworkTypes;
+
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();
 
@@ -43,10 +63,11 @@ export async function actionCommandBuild(
 			opts.output ?? "compiled-modules.json"
 		);
 
-		CLIDisplay.section("Building Move Contracts");
+		CLIDisplay.section(`Building Move Contracts for ${network.toUpperCase()}`);
 
 		CLIDisplay.value("Input Glob", inputGlob);
 		CLIDisplay.value("Output JSON", normalizedOutput);
+		CLIDisplay.value("Network", network);
 		CLIDisplay.value("Platform", "iota");
 		CLIDisplay.break();
 
@@ -72,14 +93,14 @@ export async function actionCommandBuild(
 		CLIDisplay.value("Matched Files Count", matchedFiles.length.toString());
 		CLIDisplay.break();
 
-		// Initialize the network-aware JSON structure
+		await prepareBuildEnvironment(network, executionDir);
+
 		const finalJson = {
 			testnet: {},
 			devnet: {},
 			mainnet: {}
 		};
 
-		// Check if output file exists and merge with existing structure
 		if (await CLIUtils.fileExists(normalizedOutput)) {
 			try {
 				const existingData = await fsPromises.readFile(normalizedOutput, "utf8");
@@ -111,7 +132,6 @@ export async function actionCommandBuild(
 
 		CLIDisplay.break();
 
-		// Process each Move file
 		for (const moveFile of matchedFiles) {
 			CLIDisplay.task("Processing Move file", moveFile);
 			try {
@@ -130,11 +150,9 @@ export async function actionCommandBuild(
 						networkData[contractName].packageId = packageId;
 						networkData[contractName].package = packageData;
 
-						// Preserve existing deployedPackageId if it exists
 						if (networkData[contractName].deployedPackageId) {
 							// Keep existing deployedPackageId
 						} else {
-							// Initialize as null - will be set by deploy command
 							networkData[contractName].deployedPackageId = null;
 						}
 					}
@@ -296,4 +314,105 @@ function normalizePathsAndWorkingDir(
 		normalizedOutput,
 		executionDir
 	};
+}
+
+/**
+ * Prepare build environment for network-specific compilation.
+ * @param network Target network
+ * @param outputDir Directory where the output JSON will be placed
+ */
+async function prepareBuildEnvironment(network: NetworkTypes, outputDir: string): Promise<void> {
+	CLIDisplay.task("Preparing build environment...");
+
+	// Find Move.toml files in the project
+	const moveTomlPaths = await findMoveTomlFiles(outputDir);
+
+	for (const moveTomlPath of moveTomlPaths) {
+		const projectRoot = path.dirname(moveTomlPath);
+
+		// Clean build artifacts
+		const buildDir = path.join(projectRoot, "build");
+		const moveLockFile = path.join(projectRoot, "Move.lock");
+
+		try {
+			await fsPromises.rm(buildDir, { recursive: true, force: true });
+			CLIDisplay.value("Cleaned build directory", buildDir, 1);
+		} catch {
+			// Directory might not exist, ignore
+		}
+
+		try {
+			await fsPromises.unlink(moveLockFile);
+			CLIDisplay.value("Removed Move.lock", moveLockFile, 1);
+		} catch {
+			// File might not exist, ignore
+		}
+
+		// Update Move.toml with network-specific settings
+		await updateMoveToml(moveTomlPath, network);
+	}
+}
+
+/**
+ * Recursively search a directory for Move.toml files.
+ * @param dir Directory to search
+ * @param moveTomlFiles Array to collect found files
+ */
+async function searchDirectoryForMoveToml(dir: string, moveTomlFiles: string[]): Promise<void> {
+	try {
+		const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+
+		for (const entry of entries) {
+			const fullPath = path.join(dir, entry.name);
+
+			if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+				await searchDirectoryForMoveToml(fullPath, moveTomlFiles);
+			} else if (entry.isFile() && entry.name === "Move.toml") {
+				moveTomlFiles.push(fullPath);
+			}
+		}
+	} catch {
+		// Ignore directories that can't be read
+	}
+}
+
+/**
+ * Find all Move.toml files in a directory tree.
+ * @param rootDir Root directory to search
+ * @returns Array of Move.toml file paths
+ */
+async function findMoveTomlFiles(rootDir: string): Promise<string[]> {
+	const moveTomlFiles: string[] = [];
+	await searchDirectoryForMoveToml(rootDir, moveTomlFiles);
+	return moveTomlFiles;
+}
+
+/**
+ * Update Move.toml with network-specific settings.
+ * @param moveTomlPath Path to Move.toml file
+ * @param network Target network
+ */
+async function updateMoveToml(moveTomlPath: string, network: NetworkTypes): Promise<void> {
+	try {
+		const content = await fsPromises.readFile(moveTomlPath, "utf8");
+
+		// Replace the rev value with the target network
+		// This regex matches: rev = "anything" (with optional whitespace around)
+		const updatedContent = content.replace(/rev\s*=\s*"[^"]*"/g, `rev = "${network}"`);
+
+		// Only write back if content actually changed
+		if (updatedContent !== content) {
+			await fsPromises.writeFile(moveTomlPath, updatedContent, "utf8");
+			CLIDisplay.value("Updated Move.toml rev for network", network, 1);
+		} else {
+			CLIDisplay.value("Move.toml already configured for network", network, 1);
+		}
+	} catch (err) {
+		throw new GeneralError(
+			"commands",
+			"Failed to update Move.toml",
+			{ file: moveTomlPath, network },
+			err
+		);
+	}
 }
