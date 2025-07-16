@@ -10,12 +10,6 @@ Action for the deploy command.
 
 Command options.
 
-#### config?
-
-`string`
-
-Path to network config file.
-
 #### contracts?
 
 `string`

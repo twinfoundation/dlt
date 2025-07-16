@@ -41,25 +41,19 @@ move-to-json build "src/contracts/**/*.move" --output compiled-modules.json
     "compiler": "move-to-json-v2"
   },
   "testnet": {
-    "nft": {
-      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-      "package": "oRzrCwYAAAAKAQAKAgoQ...",
-      "deployedPackageId": null
-    }
+    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+    "package": "oRzrCwYAAAAKAQAKAgoQ...",
+    "deployedPackageId": null
   },
   "devnet": {
-    "nft": {
-      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-      "package": "oRzrCwYAAAAKAQAKAgoQ...",
-      "deployedPackageId": null
-    }
+    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+    "package": "oRzrCwYAAAAKAQAKAgoQ...",
+    "deployedPackageId": null
   },
   "mainnet": {
-    "nft": {
-      "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-      "package": "oRzrCwYAAAAKAQAKAgoQ...",
-      "deployedPackageId": null
-    }
+    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
+    "package": "oRzrCwYAAAAKAQAKAgoQ...",
+    "deployedPackageId": null
   }
 }
 ```
@@ -100,8 +94,8 @@ deployment:
     url: https://gas-station.testnet.iota.cafe
     authToken: ${GAS_STATION_AUTH}
 contracts:
-  nft:
-    moduleName: nft
+  my_contract:
+    moduleName: my_contract
     dependencies: ["0x1", "0x2"]
 ```
 
@@ -169,8 +163,8 @@ import compiledModulesJson from './contracts/compiled-modules.json';
 const network = getCurrentNetwork(); // 'testnet', 'devnet', 'mainnet'
 
 // Access deployed package ID for the current network
-const deployedPackageId = compiledModulesJson[network].nft.deployedPackageId;
-const modules = compiledModulesJson[network].nft.package;
+const deployedPackageId = compiledModulesJson[network].deployedPackageId;
+const modules = compiledModulesJson[network].package;
 
 // Use in your application
 const result = await iotaClient.publish({

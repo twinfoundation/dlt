@@ -6,9 +6,9 @@
  */
 export interface ICompiledModules {
 	/**
-	 * The compiled module items.
+	 * Network-specific compiled module data
 	 */
-	[contractName: string]: {
+	testnet: {
 		/**
 		 * The package ID.
 		 */
@@ -18,5 +18,48 @@ export interface ICompiledModules {
 		 * The package data.
 		 */
 		package: string | string[];
+
+		/**
+		 * The deployed package ID (null if not deployed).
+		 */
+		deployedPackageId: string | null;
+	};
+	/**
+	 * Devnet network compiled module data
+	 */
+	devnet: {
+		/**
+		 * The package ID.
+		 */
+		packageId: string;
+
+		/**
+		 * The package data.
+		 */
+		package: string | string[];
+
+		/**
+		 * The deployed package ID (null if not deployed).
+		 */
+		deployedPackageId: string | null;
+	};
+	/**
+	 * Mainnet network compiled module data
+	 */
+	mainnet: {
+		/**
+		 * The package ID.
+		 */
+		packageId: string;
+
+		/**
+		 * The package data.
+		 */
+		package: string | string[];
+
+		/**
+		 * The deployed package ID (null if not deployed).
+		 */
+		deployedPackageId: string | null;
 	};
 }

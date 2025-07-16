@@ -5,13 +5,18 @@ import { promises as fsPromises } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CLIDisplay } from "@twin.org/cli-core";
-import { GeneralError, Is } from "@twin.org/core";
+import { GeneralError, Is, Converter } from "@twin.org/core";
+import { Bip39 } from "@twin.org/crypto";
 import type { Command } from "commander";
-import YAML from "yaml";
+import { config as dotenvConfig } from "dotenv";
 import type { ICoinObject } from "../models/ICoinObject";
 import type { INetworkConfig } from "../models/INetworkConfig";
 import type { NetworkTypes } from "../models/networkTypes";
-import { validateDeploymentEnvironment, getDeploymentMnemonic } from "../utils/envSetup.js";
+import {
+	validateDeploymentEnvironment,
+	getDeploymentMnemonic,
+	getDeploymentSeed
+} from "../utils/envSetup.js";
 
 /**
  * Execute a command asynchronously and capture output.
@@ -47,9 +52,8 @@ export function buildCommandDeploy(program: Command): void {
 	program
 		.command("deploy")
 		.description("Deploy compiled contracts to the specified network")
-		.option("-c, --config <path>", "Path to network configuration file")
 		.option("--contracts <path>", "Path to compiled contracts file", "compiled-modules.json")
-		.option("-n, --network <network>", "Target network (testnet, devnet, mainnet)")
+		.requiredOption("-n, --network <network>", "Target network (testnet, devnet, mainnet)")
 		.option("--dry-run", "Perform a dry run without actual deployment")
 		.option("-f, --force", "Force redeployment even if already deployed")
 		.action(actionCommandDeploy);
@@ -58,14 +62,12 @@ export function buildCommandDeploy(program: Command): void {
 /**
  * Action for the deploy command.
  * @param opts Command options.
- * @param opts.config Path to network config file.
  * @param opts.contracts Path to compiled modules JSON.
  * @param opts.network Network identifier.
  * @param opts.dryRun Simulate deployment without executing.
  * @param opts.force Force redeployment of existing packages.
  */
 export async function actionCommandDeploy(opts: {
-	config?: string;
 	contracts?: string;
 	network?: string;
 	dryRun?: boolean;
@@ -74,22 +76,17 @@ export async function actionCommandDeploy(opts: {
 	CLIDisplay.section("Deploy Contracts");
 
 	try {
-		const configPath = opts.config;
 		const contractsPath = opts.contracts ?? "compiled-modules.json";
 		const network = opts.network as NetworkTypes;
 		const dryRun = opts.dryRun ?? false;
 		const force = opts.force ?? false;
 
-		if (!configPath) {
-			CLIDisplay.error("Config file is required");
-			return;
-		}
 		if (!network) {
 			CLIDisplay.error("Network is required");
 			return;
 		}
 
-		const config = await loadNetworkConfig(configPath);
+		const config = await loadNetworkConfigFromEnv(network);
 		validateNetworkConfig(config, network);
 
 		const contractsData = await loadCompiledContracts(contractsPath);
@@ -106,16 +103,15 @@ export async function actionCommandDeploy(opts: {
 			});
 		}
 
-		for (const [contractName, contractData] of Object.entries(networkContracts)) {
-			await deployContract(
-				contractName,
-				contractData as { packageId: string; package: string; deployedPackageId?: string },
-				config,
-				network,
-				dryRun,
-				force
-			);
-		}
+		// Handle flat structure - deploy the single contract directly
+		await deployContract(
+			"contract", // Use generic name since we have flat structure
+			networkContracts as { packageId: string; package: string; deployedPackageId?: string },
+			config,
+			network,
+			dryRun,
+			force
+		);
 
 		if (!dryRun) {
 			await updateContractsFile(contractsPath, contractsData);
@@ -129,22 +125,69 @@ export async function actionCommandDeploy(opts: {
 }
 
 /**
- * Load network configuration from file.
- * @param configPath Path to configuration file.
+ * Load network configuration from environment file.
+ * @param network Target network to determine which env file to load.
  * @returns Network configuration.
  */
-async function loadNetworkConfig(configPath: string): Promise<INetworkConfig> {
+async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetworkConfig> {
 	try {
-		const content = await fsPromises.readFile(configPath, "utf8");
-		const config = YAML.parse(content) as INetworkConfig;
+		// Determine the env file path based on network
+		const envFilePath = path.join(process.cwd(), "configs", `${network}.env`);
 
-		if (!config.platform || config.platform !== "iota") {
-			throw new GeneralError("commands", "Invalid configuration: platform must be 'iota'");
+		// Load environment variables from the network-specific file
+		const result = dotenvConfig({ path: envFilePath });
+
+		if (result.error) {
+			throw new GeneralError("commands", `Failed to load environment file: ${envFilePath}`, {
+				network,
+				envFilePath,
+				error: result.error.message
+			});
+		}
+
+		// TODO: is this the best way to do this?
+		// Build config object from environment variables
+		const config: INetworkConfig = {
+			network,
+			platform: "iota",
+			rpc: {
+				url: process.env.RPC_URL ?? `https://api.${network}.iota.cafe`,
+				timeout: process.env.RPC_TIMEOUT ? Number.parseInt(process.env.RPC_TIMEOUT, 10) : 60000
+			},
+			deployment: {
+				gasBudget: process.env.GAS_BUDGET ? Number.parseInt(process.env.GAS_BUDGET, 10) : 50000000,
+				confirmationTimeout: process.env.CONFIRMATION_TIMEOUT
+					? Number.parseInt(process.env.CONFIRMATION_TIMEOUT, 10)
+					: 60,
+				wallet: {
+					mnemonicId: process.env.MNEMONIC_ID ?? "deployer-mnemonic",
+					addressIndex: process.env.ADDRESS_INDEX
+						? Number.parseInt(process.env.ADDRESS_INDEX, 10)
+						: 0
+				}
+			}
+		};
+
+		// TODO: Remove this. Gas station will not be used here!
+		// Add gas station configuration if available
+		if (process.env.GAS_STATION_URL && process.env.GAS_STATION_AUTH) {
+			config.deployment.gasStation = {
+				url: process.env.GAS_STATION_URL,
+				authToken: process.env.GAS_STATION_AUTH
+			};
 		}
 
 		return config;
 	} catch (err) {
-		throw new GeneralError("commands", "Failed to load network configuration", { configPath }, err);
+		if (err instanceof GeneralError) {
+			throw err;
+		}
+		throw new GeneralError(
+			"commands",
+			"Failed to load network configuration from environment",
+			{ network },
+			err
+		);
 	}
 }
 
@@ -229,9 +272,8 @@ async function deployContract(
 		if (network === "mainnet") {
 			try {
 				validateDeploymentEnvironment(network);
-				const mnemonic = getDeploymentMnemonic(network);
-				const walletAddress = await getWalletAddressFromMnemonic(
-					mnemonic,
+				const walletAddress = await getDeploymentWalletAddress(
+					network,
 					config.deployment.wallet.addressIndex
 				);
 				CLIDisplay.value("DRY RUN: Wallet Address", walletAddress, 1);
@@ -263,9 +305,8 @@ async function deployContract(
 		// For mainnet, validate environment and check balance
 		if (network === "mainnet") {
 			validateDeploymentEnvironment(network);
-			const mnemonic = getDeploymentMnemonic(network);
-			const walletAddress = await getWalletAddressFromMnemonic(
-				mnemonic,
+			const walletAddress = await getDeploymentWalletAddress(
+				network,
 				config.deployment.wallet.addressIndex
 			);
 			CLIDisplay.value("Wallet Address", walletAddress, 1);
@@ -304,26 +345,18 @@ async function deployContract(
 }
 
 /**
- * Get wallet address from mnemonic using wallet CLI.
- * @param mnemonic The mnemonic phrase.
+ * Get wallet address from seed using wallet CLI.
+ * @param seed The seed value (hex string starting with 0x).
  * @param addressIndex The address index to derive.
  * @returns The wallet address.
  */
-async function getWalletAddressFromMnemonic(
-	mnemonic: string,
-	addressIndex: number
-): Promise<string> {
-	// Create temporary files for mnemonic
+async function getWalletAddressFromSeed(seed: string, addressIndex: number): Promise<string> {
 	const tempDir = tmpdir();
-	const walletEnvFile = path.join(tempDir, `wallet_${Date.now()}.env`);
 	const addressEnvFile = path.join(tempDir, `address_${Date.now()}.env`);
 
 	try {
-		// Write mnemonic to temporary wallet.env file
-		await fsPromises.writeFile(walletEnvFile, `MNEMONIC="${mnemonic}"\n`);
-
-		// Generate address using wallet CLI
-		const addressCmd = `npx "@twin.org/wallet-cli" address --load-env "${walletEnvFile}" --seed '!SEED' --count ${addressIndex + 1} --env "${addressEnvFile}"`;
+		// Generate address using the provided seed
+		const addressCmd = `npx "@twin.org/wallet-cli" address --seed "${seed}" --count ${addressIndex + 1} --env "${addressEnvFile}"`;
 		await execAsync(addressCmd);
 
 		// Read the generated address
@@ -340,9 +373,52 @@ async function getWalletAddressFromMnemonic(
 		return addressMatch[1].trim();
 	} finally {
 		// Clean up temporary files
-		await fsPromises.unlink(walletEnvFile);
-		await fsPromises.unlink(addressEnvFile);
+		try {
+			await fsPromises.unlink(addressEnvFile);
+		} catch {
+			// TODO: Do we need to handle something here?
+			// Ignore cleanup errors
+		}
 	}
+}
+
+/**
+ * Get wallet address from mnemonic using the crypto library.
+ * @param mnemonic The mnemonic phrase.
+ * @param addressIndex The address index to derive.
+ * @returns The wallet address.
+ */
+async function getWalletAddressFromMnemonic(
+	mnemonic: string,
+	addressIndex: number
+): Promise<string> {
+	// Use the crypto library to derive seed from mnemonic (same as original wallet.env generation)
+	const seed = Bip39.mnemonicToSeed(mnemonic);
+	const seedHex = Converter.bytesToHex(seed, true);
+
+	// Use wallet CLI to generate address from the derived seed
+	return getWalletAddressFromSeed(seedHex, addressIndex);
+}
+
+/**
+ * Get wallet address for deployment, preferring seed over mnemonic if available.
+ * @param network The target network.
+ * @param addressIndex The address index to derive.
+ * @returns The wallet address.
+ */
+async function getDeploymentWalletAddress(
+	network: NetworkTypes,
+	addressIndex: number
+): Promise<string> {
+	// Try to use seed first if available
+	const seed = getDeploymentSeed(network);
+	if (seed) {
+		return getWalletAddressFromSeed(seed, addressIndex);
+	}
+
+	// Fall back to mnemonic
+	const mnemonic = getDeploymentMnemonic(network);
+	return getWalletAddressFromMnemonic(mnemonic, addressIndex);
 }
 
 /**
@@ -365,16 +441,27 @@ async function getWalletBalance(address: string, rpcUrl: string): Promise<number
 		const balanceCmd = `iota client balance "${address}" --json`;
 		const output = await execAsync(balanceCmd);
 
-		// Parse the JSON output: [coinData, hasNextPage]
+		// Parse the JSON output: [[[metadata, coinObjects]], hasNextPage]
 		const balanceData = JSON.parse(output) as unknown[];
-		const coinData = balanceData[0] as unknown[];
 		const hasNextPage = balanceData[1] as boolean;
 
-		if (!Is.arrayValue(coinData)) {
+		// Array structure: [[[metadata, coinObjects]]]
+		const outerArray = balanceData[0] as unknown[];
+		if (!Is.arrayValue(outerArray)) {
 			return 0;
 		}
 
-		const coinObjects = coinData[0] as unknown[];
+		const middleArray = outerArray[0] as unknown[];
+		if (!Is.arrayValue(middleArray)) {
+			return 0;
+		}
+
+		// The structure is [metadata, coinObjects]
+		if (middleArray.length < 2) {
+			return 0;
+		}
+
+		const coinObjects = middleArray[1] as unknown[];
 		if (!Is.arrayValue(coinObjects)) {
 			return 0;
 		}

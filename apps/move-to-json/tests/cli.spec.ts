@@ -120,30 +120,30 @@ describe("move-to-json CLI", () => {
 		const fileContents = await readFile(TEST_OUTPUT_JSON, "utf8");
 		const json = JSON.parse(fileContents);
 
-		// Check new network-aware structure
+		// Check new network-aware structure exists
 		expect(json.testnet).toBeDefined();
 		expect(json.devnet).toBeDefined();
 		expect(json.mainnet).toBeDefined();
 
-		// Check contract data in all networks
-		expect(json.testnet.nft).toBeDefined();
-		expect(json.testnet.nft.packageId).toMatch(/^0x/);
-		expect(json.testnet.nft.package).toBeDefined();
-		expect(json.testnet.nft.deployedPackageId).toBeNull();
+		// Check contract data in target network (testnet) - flat structure
+		expect(json.testnet.packageId).toMatch(/^0x/);
+		expect(json.testnet.package).toBeDefined();
+		expect(json.testnet.deployedPackageId).toBeNull();
 
-		expect(json.devnet.nft).toBeDefined();
-		expect(json.mainnet.nft).toBeDefined();
+		// Other networks should be empty objects (not populated)
+		expect(Object.keys(json.devnet).length).toBe(0);
+		expect(Object.keys(json.mainnet).length).toBe(0);
 	});
 
-	test("Deploy command requires config and network options", async () => {
+	test("Deploy command requires network option", async () => {
 		const cli = new CLI();
 		const exitCode = await cli.run(["node", "move-to-json", "deploy"], "./dist/locales", {
 			overrideOutputWidth: 1000
 		});
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		const errOutput = errorBuffer.join("\n");
-		expect(errOutput).toContain("Config file is required");
+		expect(errOutput).toContain("required option '-n, --network <network>' not specified");
 	});
 });
 

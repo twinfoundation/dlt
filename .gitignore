@@ -10,6 +10,9 @@ coverage
 **/.tmp
 .env
 .env.dev
+mainnet.env
+devnet.env
+testnet.env
 vitest.config.ts.timestamp*
 
 # Move contract build artifacts
