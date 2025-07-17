@@ -6,7 +6,7 @@
 
 ## Interfaces
 
-- [ICompiledModules](interfaces/ICompiledModules.md)
+- [IContractData](interfaces/IContractData.md)
 
 ## Type Aliases
 

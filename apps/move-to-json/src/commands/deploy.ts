@@ -10,6 +10,7 @@ import { Bip39 } from "@twin.org/crypto";
 import type { Command } from "commander";
 import { config as dotenvConfig } from "dotenv";
 import type { ICoinObject } from "../models/ICoinObject";
+import type { IContractData } from "../models/IContractData";
 import type { INetworkConfig } from "../models/INetworkConfig";
 import type { NetworkTypes } from "../models/networkTypes";
 import {
@@ -60,6 +61,63 @@ export function buildCommandDeploy(program: Command): void {
 }
 
 /**
+ * Switch IOTA CLI to the target network environment.
+ * @param network Target network to switch to
+ * @param dryRun Whether this is a dry run (checks environment but doesn't switch)
+ */
+async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false): Promise<void> {
+	try {
+		CLIDisplay.task(
+			dryRun ? "Checking IOTA CLI environment..." : "Setting IOTA CLI environment..."
+		);
+
+		// Check if the environment exists
+		const envListOutput = await execAsync("iota client envs");
+		if (!envListOutput.includes(network)) {
+			throw new GeneralError(
+				"commands",
+				`IOTA CLI environment '${network}' not found. Please configure it first.`,
+				{
+					network,
+					availableEnvironments: envListOutput,
+					setupCommand: `iota client new-env --alias ${network} --rpc <RPC_URL>`
+				}
+			);
+		}
+
+		if (dryRun) {
+			CLIDisplay.value("IOTA environment check", `✅ ${network} environment exists`, 1);
+			return;
+		}
+
+		// Switch to target network environment
+		await execAsync(`iota client switch --env ${network}`);
+
+		CLIDisplay.value("Switched IOTA environment", network, 1);
+
+		// Verify the switch was successful
+		const activeEnv = await execAsync("iota client active-env");
+		if (!activeEnv.includes(network)) {
+			throw new GeneralError(
+				"commands",
+				`Failed to switch to ${network} environment. Active environment: ${activeEnv}`,
+				{ network, activeEnv }
+			);
+		}
+	} catch (error) {
+		if (error instanceof GeneralError) {
+			throw error;
+		}
+		throw new GeneralError(
+			"commands",
+			`Failed to ${dryRun ? "check" : "switch to"} ${network} environment. Make sure IOTA CLI is configured with this environment.`,
+			{ network },
+			error
+		);
+	}
+}
+
+/**
  * Action for the deploy command.
  * @param opts Command options.
  * @param opts.contracts Path to compiled modules JSON.
@@ -86,6 +144,9 @@ export async function actionCommandDeploy(opts: {
 			return;
 		}
 
+		// Check/switch to target network environment BEFORE loading config
+		await setIotaEnvironment(network, dryRun);
+
 		const config = await loadNetworkConfigFromEnv(network);
 		validateNetworkConfig(config, network);
 
@@ -106,7 +167,7 @@ export async function actionCommandDeploy(opts: {
 		// Handle flat structure - deploy the single contract directly
 		await deployContract(
 			"contract", // Use generic name since we have flat structure
-			networkContracts as { packageId: string; package: string; deployedPackageId?: string },
+			networkContracts as IContractData,
 			config,
 			network,
 			dryRun,
@@ -249,7 +310,7 @@ async function loadCompiledContracts(contractsPath: string): Promise<{ [key: str
  */
 async function deployContract(
 	contractName: string,
-	contractData: { packageId: string; package: string; deployedPackageId?: string },
+	contractData: IContractData,
 	config: INetworkConfig,
 	network: NetworkTypes,
 	dryRun: boolean,
@@ -330,10 +391,15 @@ async function deployContract(
 		}
 
 		// Deploy using IOTA CLI
-		const deployedPackageId = await deployWithIotaCli(config.deployment.gasBudget);
+		const deploymentResult = await deployWithIotaCli(config.deployment.gasBudget);
 
-		contractData.deployedPackageId = deployedPackageId;
-		CLIDisplay.value("Deployed Package ID", deployedPackageId, 1);
+		contractData.deployedPackageId = deploymentResult.packageId;
+		contractData.upgradeCap = deploymentResult.upgradeCap ?? null;
+
+		CLIDisplay.value("Deployed Package ID", deploymentResult.packageId, 1);
+		if (deploymentResult.upgradeCap) {
+			CLIDisplay.value("UpgradeCap ID", deploymentResult.upgradeCap, 1);
+		}
 	} catch (err) {
 		throw new GeneralError(
 			"commands",
@@ -497,7 +563,9 @@ async function getWalletBalance(address: string, rpcUrl: string): Promise<number
  * @param gasBudget Gas budget for deployment.
  * @returns Deployment result with package ID.
  */
-async function deployWithIotaCli(gasBudget: number): Promise<string> {
+async function deployWithIotaCli(
+	gasBudget: number
+): Promise<{ packageId: string; upgradeCap?: string }> {
 	// Find the Move project directory by looking for Move.toml files
 	const moveTomlPaths = await findMoveTomlFiles(process.cwd());
 
@@ -523,6 +591,7 @@ async function deployWithIotaCli(gasBudget: number): Promise<string> {
 	const output = await execAsync(publishCmd, { cwd: moveProjectRoot });
 	const result = JSON.parse(output);
 
+	// Extract package ID from published object
 	const packageId = result.objectChanges?.find(
 		(change: { type: string; packageId?: string }) => change.type === "published"
 	)?.packageId;
@@ -533,7 +602,16 @@ async function deployWithIotaCli(gasBudget: number): Promise<string> {
 		});
 	}
 
-	return packageId;
+	// Extract UpgradeCap ID from created objects
+	const upgradeCap = result.objectChanges?.find(
+		(change: { objectType?: string; objectId?: string }) =>
+			change.objectType === "0x2::package::UpgradeCap"
+	)?.objectId;
+
+	return {
+		packageId,
+		upgradeCap
+	};
 }
 
 /**

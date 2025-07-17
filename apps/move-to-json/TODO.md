@@ -19,8 +19,12 @@
 
 * Smart contract versioning concern raised about maintaining backward compatibility when updating contracts with new deployment IDs.
   * Update flag investigation needed to understand how smart contract updates maintain access to shared objects.
-  * Version number management in move.toml file may be key to proper smart contract update procedures.
+  * Version number management in move.toml file may be key to proper smart contract update procedures. NO, this is just metadata for devs, although we should have a version number in the Move.toml.
   * We're going to have to cover tests that will imply deploying a package, using it, and then updating the package and have tests that make sure we are accounted for backwards compatibility.
+  
+  ✅ Remove Contract compilation and deployment, Package existence checking, and Transaction publishing logic from IotaNftConnector.start()
+  
+  ✅ When publishing we get an UpgradeCap ID, we need to use that to update the contract. !Let's see how that works!
 ✅ check nft structure and make sure our tool will work
 ✅ update readme with the latest and include how to install CLI with HOMEBREW
 * Check TODO's in the codebase and make sure we are covering all of them.

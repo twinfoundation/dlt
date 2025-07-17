@@ -313,52 +313,26 @@ function normalizePathsAndWorkingDir(
 
 /**
  * Prepare build environment for network-specific compilation.
- * @param network Target network
+ * @param network Target network (used for environment context)
  * @param outputDir Directory where the output JSON will be placed
  */
 async function prepareBuildEnvironment(network: NetworkTypes, outputDir: string): Promise<void> {
 	CLIDisplay.task("Preparing build environment...");
 
-	// Find network-specific Move.toml files in the project
-	const networkTomlPaths = await findNetworkSpecificMoveTomlFiles(outputDir, network);
+	// Find all Move projects in the directory tree
+	const moveProjects = await findMoveProjects(outputDir);
 
-	for (const networkTomlPath of networkTomlPaths) {
-		const projectRoot = path.dirname(networkTomlPath);
-
-		// Clean build artifacts
-		const buildDir = path.join(projectRoot, "build");
-		const moveLockFile = path.join(projectRoot, "Move.lock");
-
-		try {
-			await fsPromises.rm(buildDir, { recursive: true, force: true });
-			CLIDisplay.value("Cleaned build directory", buildDir, 1);
-		} catch {
-			// Directory might not exist, ignore
-		}
-
-		try {
-			await fsPromises.unlink(moveLockFile);
-			CLIDisplay.value("Removed Move.lock", moveLockFile, 1);
-		} catch {
-			// File might not exist, ignore
-		}
-
-		// Copy network-specific Move.toml
-		await copyNetworkSpecificMoveToml(projectRoot, network);
+	for (const projectRoot of moveProjects) {
+		CLIDisplay.value("Prepared project", projectRoot, 1);
 	}
 }
 
 /**
- * Recursively search a directory for network-specific Move.toml files.
+ * Recursively search a directory for Move.toml files.
  * @param dir Directory to search
- * @param network Target network
- * @param networkTomlFiles Array to collect found files
+ * @param moveProjects Array to collect found projects
  */
-async function searchDirectoryForNetworkSpecificMoveToml(
-	dir: string,
-	network: NetworkTypes,
-	networkTomlFiles: string[]
-): Promise<void> {
+async function searchDirectoryForMoveToml(dir: string, moveProjects: string[]): Promise<void> {
 	try {
 		const entries = await fsPromises.readdir(dir, { withFileTypes: true });
 
@@ -366,9 +340,10 @@ async function searchDirectoryForNetworkSpecificMoveToml(
 			const fullPath = path.join(dir, entry.name);
 
 			if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
-				await searchDirectoryForNetworkSpecificMoveToml(fullPath, network, networkTomlFiles);
-			} else if (entry.isFile() && entry.name === `Move.toml.${network}`) {
-				networkTomlFiles.push(fullPath);
+				await searchDirectoryForMoveToml(fullPath, moveProjects);
+			} else if (entry.isFile() && entry.name === "Move.toml") {
+				// Add the directory containing Move.toml, not the file itself
+				moveProjects.push(dir);
 			}
 		}
 	} catch {
@@ -377,56 +352,13 @@ async function searchDirectoryForNetworkSpecificMoveToml(
 }
 
 /**
- * Find all network-specific Move.toml files in a directory tree.
+ * Find all Move project directories in a directory tree.
  * @param rootDir Root directory to search
- * @param network Target network
- * @returns Array of network-specific Move.toml file paths
+ * @returns Array of project directories containing Move.toml files
  */
-async function findNetworkSpecificMoveTomlFiles(
-	rootDir: string,
-	network: NetworkTypes
-): Promise<string[]> {
-	const networkTomlFiles: string[] = [];
-	await searchDirectoryForNetworkSpecificMoveToml(rootDir, network, networkTomlFiles);
-	return networkTomlFiles;
-}
-
-/**
- * Copy network-specific Move.toml file to the project root.
- * @param projectRoot Path to the project root directory
- * @param network Target network
- */
-async function copyNetworkSpecificMoveToml(
-	projectRoot: string,
-	network: NetworkTypes
-): Promise<void> {
-	try {
-		const sourceFile = path.join(projectRoot, `Move.toml.${network}`);
-		const targetFile = path.join(projectRoot, "Move.toml");
-
-		// Check if network-specific Move.toml exists
-		try {
-			await fsPromises.access(sourceFile);
-		} catch {
-			throw new GeneralError(
-				"commands",
-				`Network-specific Move.toml not found: Move.toml.${network}`,
-				{ sourceFile, projectRoot, network }
-			);
-		}
-
-		// Copy network-specific Move.toml to Move.toml
-		await fsPromises.copyFile(sourceFile, targetFile);
-		CLIDisplay.value("Copied network-specific Move.toml", `Move.toml.${network} → Move.toml`, 1);
-	} catch (err) {
-		if (err instanceof GeneralError) {
-			throw err;
-		}
-		throw new GeneralError(
-			"commands",
-			"Failed to copy network-specific Move.toml",
-			{ projectRoot, network },
-			err
-		);
-	}
+async function findMoveProjects(rootDir: string): Promise<string[]> {
+	const moveProjects: string[] = [];
+	await searchDirectoryForMoveToml(rootDir, moveProjects);
+	// Remove duplicates in case a directory is found multiple times
+	return Array.from(new Set(moveProjects));
 }

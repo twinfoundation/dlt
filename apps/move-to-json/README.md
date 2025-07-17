@@ -119,16 +119,20 @@ move-to-json build "src/**/*.move" --network <network> [--output <file>]
 **What it does:**
 1. Validates environment variables for the target network
 2. Cleans build artifacts and Move.lock files
-3. Updates Move.toml with network-specific dependencies  
-4. Compiles contracts using IOTA CLI
-5. Generates network-aware JSON with package IDs and base64 modules
+3. Compiles contracts using unified Move.toml (same bytecode for all networks)
+4. Generates network-aware JSON with package IDs and base64 modules
+
+**Key Changes:**
+- **Unified Move.toml**: Uses single Move.toml file with `framework/testnet` for consistent builds
+- **Network-agnostic compilation**: Same bytecode works across all networks
+- **Environment-aware**: Network targeting handled by IOTA CLI environments, not Move.toml
 
 **Example:**
 ```bash
 # Build for testnet
 npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/compiled-modules/compiled-modules.json
 
-# Build for mainnet
+# Build for mainnet (same bytecode as testnet)
 npx move-to-json build "src/contracts/**/*.move" --network mainnet --output compiled-modules.json
 ```
 
@@ -151,24 +155,166 @@ move-to-json deploy --network <network> [options]
 - `--force` - Force redeployment of existing packages
 
 **What it does:**
-1. Loads network-specific configuration from `configs/{network}.env` file
-2. Validates deployment credentials are available
-3. Checks wallet balance against gas requirements
-4. Loads compiled contracts from JSON
-5. Deploys using IOTA CLI with network-specific settings
-6. Updates JSON with deployed package IDs
+1. Switches IOTA CLI to target network environment
+2. Loads network-specific configuration from `configs/{network}.env` file
+3. Validates deployment credentials are available
+4. Checks wallet balance against gas requirements
+5. Loads compiled contracts from JSON
+6. Deploys using IOTA CLI with active network environment
+7. Extracts and saves both Package ID and UpgradeCap ID
+8. Updates JSON with deployed package information
+
+**Key Changes:**
+- **Environment switching**: Automatically switches IOTA CLI to target network
+- **Network targeting**: Uses IOTA CLI environments instead of Move.toml configuration
+- **Consistent deployment**: Same compiled bytecode deployed to all networks
+- **UpgradeCap tracking**: Captures and stores UpgradeCap object ID for future package upgrades
+
+**Prerequisites:**
+Ensure IOTA CLI environments are configured:
+```bash
+# Check available environments
+iota client envs
+
+# Configure networks if missing
+iota client new-env --alias testnet --rpc https://fullnode.testnet.iota.cafe:443
+iota client new-env --alias mainnet --rpc https://api.mainnet.iota.cafe
+iota client new-env --alias devnet --rpc https://api.devnet.iota.cafe
+```
 
 **Example:**
 ```bash
 # Deploy to testnet
 npx move-to-json deploy --network testnet
 
-# Deploy to mainnet
+# Deploy to mainnet  
 npx move-to-json deploy --network mainnet
 
 # Dry run (simulation)
 npx move-to-json deploy --network testnet --dry-run
 ```
+
+**Output:**
+The deployment saves both Package ID and UpgradeCap ID:
+```json
+{
+  "testnet": {
+    "packageId": "0x...",
+    "package": "base64data...",
+    "deployedPackageId": "0x239ad3ea39f0910a4dc4c98161bcde948fb5ed0d7d7ae6d9a593239c43af748e",
+    "upgradeCap": "0xfd6269c28e3931e41aa9d9e08ffabb8162cf1fd0baaef14094b4442e6c743edf"
+  }
+}
+```
+
+**Important Note on UpgradeCap:**
+The UpgradeCap ID is crucial for package upgrades. Keep this secure - it's required to upgrade your deployed packages in the future.
+
+## Unified Move.toml Approach
+
+The tool now uses a **unified Move.toml approach** that eliminates the need for network-specific Move.toml files. This provides better consistency and reduces complexity.
+
+### Single Move.toml Configuration
+
+Instead of multiple `Move.toml.{network}` files, use a single `Move.toml` file:
+
+```toml
+[package]
+name = "my_contract"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+Iota = { 
+    git = "https://github.com/iotaledger/iota.git", 
+    subdir = "crates/iota-framework/packages/iota-framework", 
+    rev = "framework/testnet"
+}
+
+[addresses]
+my_contract = "0x0"
+
+[dev-dependencies]
+# Optional: Override dependencies for testing
+# Iota = { git = "https://github.com/iotaledger/iota.git", subdir = "crates/iota-framework/packages/iota-framework", rev = "framework/devnet", override = true }
+
+[dev-addresses]
+# Optional: Override addresses for development
+# my_contract = "0x1234"
+```
+
+### Framework Version Strategy
+
+- **Development/Testing**: Use `framework/testnet` for all networks
+- **Production**: Same `framework/testnet` works for mainnet deployment
+- **Consistency**: Same bytecode compiles for all target networks
+
+### Network Targeting
+
+Network targeting is handled through **IOTA CLI environments**, not Move.toml:
+
+```bash
+# Build once - same bytecode for all networks
+iota move build
+
+# Deploy to different networks by switching environments
+iota client switch --env testnet && iota client publish
+iota client switch --env mainnet && iota client publish
+```
+
+### Benefits
+
+- ✅ **Consistent builds** across all networks
+- ✅ **Reduced complexity** - no file copying
+- ✅ **Industry standard** approach
+- ✅ **Better maintainability** - single source of truth
+- ✅ **Eliminated build conflicts** between networks
+
+## Package Upgrades and UpgradeCap Management
+
+When you deploy a Move package on IOTA, the network creates an **UpgradeCap** (Upgrade Capability) object that controls the ability to upgrade that package. This tool automatically captures and stores the UpgradeCap ID for future use.
+
+### What is an UpgradeCap?
+
+The UpgradeCap is a special object that:
+
+- **Controls package upgrades**: Only the holder can upgrade the package
+- **Is created once**: Generated during initial package deployment  
+- **Must be preserved**: Lost UpgradeCap = no future upgrades possible
+- **Is network-specific**: Each network deployment gets its own UpgradeCap
+
+### UpgradeCap Storage
+
+The tool stores UpgradeCap IDs in the compiled-modules.json file:
+
+```json
+{
+  "testnet": {
+    "packageId": "0xabc123...",
+    "package": "base64data...", 
+    "deployedPackageId": "0x239ad3ea39f0910a4dc4c98161bcde948fb5ed0d7d7ae6d9a593239c43af748e",
+    "upgradeCap": "0xfd6269c28e3931e41aa9d9e08ffabb8162cf1fd0baaef14094b4442e6c743edf"
+  }
+}
+```
+
+### Using UpgradeCap for Package Upgrades
+
+To upgrade a deployed package, you'll need the UpgradeCap ID:
+
+```bash
+# Example upgrade command (using IOTA CLI)
+iota client call --package 0x2 --module package --function upgrade \
+  --args 0xfd6269c28e3931e41aa9d9e08ffabb8162cf1fd0baaef14094b4442e6c743edf \
+  --gas-budget 50000000
+```
+
+### Security Considerations
+
+- **🔐 Keep UpgradeCap secure**: Treat it like a private key
+- **📱 Backup regularly**: Include UpgradeCap IDs in your backup strategy  
+- **🚫 Never share publicly**: UpgradeCap grants full upgrade control
+- **✅ Version control**: Store compiled-modules.json in secure version control
 
 ## Network Configuration Files
 

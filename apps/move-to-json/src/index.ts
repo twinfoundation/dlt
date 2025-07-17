@@ -3,5 +3,5 @@
 export * from "./cli";
 export * from "./commands/build";
 export * from "./commands/deploy";
-export * from "./models/ICompiledModules";
+export * from "./models/IContractData";
 export * from "./models/platformTypes";
