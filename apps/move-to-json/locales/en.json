@@ -1,60 +1,155 @@
 {
 	"error": {
 		"commands": {
-			"move-to-json": {
+			"build": {
+				"networkRequired": "Network parameter is required",
+				"invalidNetwork": "Invalid network: {network}. Must be one of: {validNetworks}",
 				"failedReadingOutputJson": "Failed to read output JSON file: {file}",
 				"contractProcessingFailed": "Failed to process contract: {file}",
 				"mkdirFailed": "Failed to create output directory: {dir}",
 				"buildFailed": "Build failed on platform {platform} for file {file}",
 				"sdkNotInstalled": "The {platform} SDK is not installed. Please install it first."
+			},
+			"deploy": {
+				"environmentNotFound": "IOTA CLI environment \"{network}\" not found. Please configure it first.",
+				"environmentSwitchFailed": "Failed to switch to {network} environment. Active environment: {activeEnv}",
+				"environmentOperationFailed": "Failed to {operation} {network} environment. Make sure IOTA CLI is configured with this environment.",
+				"noContractsFound": "No contracts found for network: {network}",
+				"envFileLoadFailed": "Failed to load environment file: {envFilePath}",
+				"networkConfigInvalid": "Invalid network configuration",
+				"networkMismatch": "Network mismatch",
+				"rpcUrlRequired": "Invalid configuration: RPC URL is required",
+				"gasBudgetRequired": "Invalid configuration: gas budget is required",
+				"invalidContractsFile": "Invalid contracts file: must contain an object",
+				"contractsLoadFailed": "Failed to load compiled contracts",
+				"insufficientBalance": "Insufficient wallet balance for deployment",
+				"deploymentEnvironmentCheckFailed": "Deployment environment validation failed",
+				"addressNotFound": "Could not find address at index {addressIndex}",
+				"balanceCheckFailed": "Failed to get wallet balance",
+				"deploymentFailed": "Contract deployment failed",
+				"packageIdNotFound": "Could not find package ID in deployment result",
+				"contractsFileUpdateFailed": "Failed to update contracts file"
 			}
 		}
 	},
 	"commands": {
-		"move-to-json": {
+		"build": {
+			"summary": "Compile Move contracts for specified network and generate network-aware JSON structure",
+			"description": "Compiles Move smart contracts using the IOTA CLI and generates a network-aware JSON structure containing compiled bytecode modules.",
 			"options": {
 				"inputGlob": {
-					"param": "'<'inputGlob'>'",
-					"description": "The directory (or glob) containing Move contracts."
+					"description": "A glob pattern that matches one or more Move files"
 				},
-				"outputJson": {
-					"param": "'<'outputJson'>'",
-					"description": "The JSON file that will contain compiled modules."
+				"network": {
+					"param": "--network '<'network'>'",
+					"description": "Target network (testnet/devnet/mainnet)"
 				},
-				"platform": {
-					"param": "--platform '<'platform'>'",
-					"description": "Which toolchain to use"
+				"output": {
+					"param": "--output '<'file'>'",
+					"description": "Output file for compiled modules JSON"
 				}
-			},
-			"warnings": {
-				"noMoveFilesFound": "No .move files found for the provided path: {inputGlob}"
-			},
-			"progress": {
-				"searchingFiles": "Searching for .move files...",
-				"processingMoveFile": "Processing file.",
-				"writingJsonFile": "Writing compiled modules JSON..."
-			},
-			"section": {
-				"checkingSdk": "Checking SDK Version",
-				"start": "Starting Move to JSON"
 			},
 			"labels": {
 				"inputGlob": "Input Glob",
 				"outputJson": "Output JSON",
+				"network": "Network",
 				"platform": "Platform",
 				"matchedFilesCount": "Matched Files Count",
-				"mergingWithExistingJson": "Merging with existing JSON",
-				"noMoveFilesFound": "No .move files found for the provided path: {inputGlob}",
-				"noExistingJsonFound": "No existing JSON found",
-				"creatingNewJson": "Creating new JSON",
 				"contractName": "Contract Name",
-				"compileCmd": "Compile Command",
-				"workingDir": "Working Directory",
-				"compileOutput": "Compile Output",
+				"compileCommand": "Compile Command",
+				"workingDirectory": "Working Directory",
 				"compileResult": "Compile Result",
-				"noBytecodeModulesFolderFound": "No bytecode_modules folder found for input file: {contractName}",
-				"noMvFilesFound": "No .mv files found for contract: {contractName}",
-				"computedPackageId": "Computed Package ID"
+				"computedPackageId": "Computed Package ID",
+				"mergingWithExistingJson": "Merging with existing JSON",
+				"noExistingJsonFound": "No existing JSON found",
+				"creatingNewJsonStructure": "Creating new JSON structure"
+			},
+			"progress": {
+				"searchingFiles": "Searching for Move files...",
+				"preparingBuildEnvironment": "Preparing build environment...",
+				"processingMoveFile": "Processing Move file",
+				"writingJsonFile": "Writing JSON file..."
+			},
+			"section": {
+				"checkingIotaSDK": "Checking IOTA SDK...",
+				"buildingMoveContracts": "Building Move Contracts for {network}"
+			},
+			"warnings": {
+				"noMoveFilesFound": "No Move files found for pattern: {inputGlob}",
+				"noBytecodeModulesFolder": "No bytecode_modules folder found for contract: {contractName}",
+				"noMvFilesFound": "No .mv files found for contract: {contractName}"
+			}
+		},
+		"deploy": {
+			"summary": "Deploy compiled contracts to the specified network",
+			"description": "Deploys previously compiled Move contracts to the specified IOTA network using the configured environment.",
+			"options": {
+				"contracts": {
+					"param": "--contracts '<'path'>'",
+					"description": "Path to compiled contracts file"
+				},
+				"network": {
+					"param": "-n, --network '<'network'>'",
+					"description": "Target network (testnet, devnet, mainnet)"
+				},
+				"dryRun": {
+					"param": "--dry-run",
+					"description": "Perform a dry run without actual deployment"
+				},
+				"force": {
+					"param": "-f, --force",
+					"description": "Force redeployment even if already deployed"
+				}
+			},
+			"labels": {
+				"contractsFile": "Contracts File",
+				"network": "Network",
+				"dryRunMode": "Dry Run Mode",
+				"forceMode": "Force Mode",
+				"deployedPackageId": "Deployed Package ID",
+				"upgradeCap": "Upgrade Cap",
+				"gasUsed": "Gas Used",
+				"deploymentStatus": "Deployment Status",
+				"iotaEnvironmentCheck": "IOTA environment check",
+				"switchedIotaEnvironment": "Switched IOTA environment",
+				"contractAlreadyDeployed": "Contract already deployed",
+				"dryRunWouldDeploy": "DRY RUN: Would deploy contract",
+				"dryRunPackageId": "DRY RUN: Package ID",
+				"dryRunGasBudget": "DRY RUN: Gas Budget",
+				"dryRunRpcUrl": "DRY RUN: RPC URL",
+				"dryRunWalletAddress": "DRY RUN: Wallet Address",
+				"dryRunWalletBalance": "DRY RUN: Wallet Balance",
+				"dryRunRequiredBalance": "DRY RUN: Required Balance",
+				"dryRunBalanceStatus": "DRY RUN: Balance Status",
+				"walletAddress": "Wallet Address",
+				"walletBalance": "Wallet Balance",
+				"deployedPackageIdResult": "Deployed Package ID",
+				"upgradeCapId": "UpgradeCap ID",
+				"moveProjectRoot": "Move Project Root",
+				"publishCommand": "Publish Command",
+				"workingDirectory": "Working Directory",
+				"updatedContractsFile": "Updated contracts file",
+				"warning": "⚠️  WARNING",
+				"insufficientBalanceWarning": "Insufficient balance: {currentBalance} IOTA < {requiredBalance} IOTA",
+				"environmentValidationWarning": "Environment validation failed: {message}",
+				"gasBudget": "Gas Budget",
+				"requiredBalance": "Required Balance",
+				"balanceStatus": "Balance Status"
+			},
+			"progress": {
+				"loadingContracts": "Loading compiled contracts...",
+				"checkingEnvironment": "Checking IOTA CLI environment...",
+				"settingEnvironment": "Setting IOTA CLI environment...",
+				"deployingContract": "Deploying contract: {contractName} ({network})",
+				"updatingContractsFile": "Updating contracts file..."
+			},
+			"messages": {
+				"networkRequired": "Network is required"
+			},
+			"section": {
+				"deploymentConfiguration": "Deployment Configuration",
+				"deploymentResults": "Deployment Results",
+				"deployContracts": "Deploy Contracts"
 			}
 		}
 	}

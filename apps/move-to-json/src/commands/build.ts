@@ -3,11 +3,12 @@
 import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
-import { Converter, GeneralError, StringHelper } from "@twin.org/core";
+import { Converter, GeneralError, StringHelper, I18n } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
 import type { Command } from "commander";
 import FastGlob from "fast-glob";
 import type { NetworkTypes } from "../models/networkTypes";
+import { verifyIotaSDK } from "../utils/iotaUtils.js";
 
 /**
  * Build the build command to be consumed by the CLI.
@@ -16,12 +17,17 @@ import type { NetworkTypes } from "../models/networkTypes";
 export function buildCommandBuild(program: Command): void {
 	program
 		.command("build")
-		.description(
-			"Compile Move contracts for specified network and generate network-aware JSON structure"
+		.description(I18n.formatMessage("commands.build.description"))
+		.argument("<inputGlob>", I18n.formatMessage("commands.build.options.inputGlob.description"))
+		.requiredOption(
+			I18n.formatMessage("commands.build.options.network.param"),
+			I18n.formatMessage("commands.build.options.network.description")
 		)
-		.argument("<inputGlob>", "A glob pattern that matches one or more Move files")
-		.requiredOption("--network <network>", "Target network (testnet/devnet/mainnet)")
-		.option("--output <file>", "Output file for compiled modules JSON", "compiled-modules.json")
+		.option(
+			I18n.formatMessage("commands.build.options.output.param"),
+			I18n.formatMessage("commands.build.options.output.description"),
+			"compiled-modules.json"
+		)
 		.action(async (inputGlob, opts) => {
 			await actionCommandBuild(inputGlob, opts);
 		});
@@ -40,16 +46,15 @@ export async function actionCommandBuild(
 ): Promise<void> {
 	try {
 		if (!opts.network) {
-			throw new GeneralError("commands", "Network parameter is required", {});
+			throw new GeneralError("commands", "commands.build.networkRequired");
 		}
 
 		const validNetworks: NetworkTypes[] = ["testnet", "devnet", "mainnet"];
 		if (!validNetworks.includes(opts.network as NetworkTypes)) {
-			throw new GeneralError(
-				"commands",
-				`Invalid network: ${opts.network}. Must be one of: ${validNetworks.join(", ")}`,
-				{}
-			);
+			throw new GeneralError("commands", "commands.build.invalidNetwork", {
+				network: opts.network,
+				validNetworks: validNetworks.join(", ")
+			});
 		}
 
 		const network = opts.network as NetworkTypes;
@@ -57,22 +62,25 @@ export async function actionCommandBuild(
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();
 
-		// Normalize paths and get working directory
 		const { normalizedGlob, normalizedOutput, executionDir } = normalizePathsAndWorkingDir(
 			inputGlob,
 			opts.output ?? "compiled-modules.json"
 		);
 
-		CLIDisplay.section(`Building Move Contracts for ${network.toUpperCase()}`);
+		CLIDisplay.section(
+			I18n.formatMessage("commands.build.section.buildingMoveContracts", {
+				network: network.toUpperCase()
+			})
+		);
 
-		CLIDisplay.value("Input Glob", inputGlob);
-		CLIDisplay.value("Output JSON", normalizedOutput);
-		CLIDisplay.value("Network", network);
-		CLIDisplay.value("Platform", "iota");
+		CLIDisplay.value(I18n.formatMessage("commands.build.labels.inputGlob"), inputGlob);
+		CLIDisplay.value(I18n.formatMessage("commands.build.labels.outputJson"), normalizedOutput);
+		CLIDisplay.value(I18n.formatMessage("commands.build.labels.network"), network);
+		CLIDisplay.value(I18n.formatMessage("commands.build.labels.platform"), "iota");
 		CLIDisplay.break();
 
 		// Find matching .move files
-		CLIDisplay.task("Searching for Move files...");
+		CLIDisplay.task(I18n.formatMessage("commands.build.progress.searchingFiles"));
 
 		const matchedFiles = await FastGlob(
 			[normalizedGlob, "!**/build/**/*.move", "!**/dependencies/**/*.move"],
@@ -88,12 +96,28 @@ export async function actionCommandBuild(
 		);
 
 		if (matchedFiles.length === 0) {
-			CLIDisplay.value("Warning: No Move files found for pattern", inputGlob, 2);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.build.warnings.noMoveFilesFound", { inputGlob }),
+				"",
+				2
+			);
 		}
-		CLIDisplay.value("Matched Files Count", matchedFiles.length.toString());
+		CLIDisplay.value(
+			I18n.formatMessage("commands.build.labels.matchedFilesCount"),
+			matchedFiles.length.toString()
+		);
 		CLIDisplay.break();
 
-		await prepareBuildEnvironment(network, executionDir);
+		// Prepare build environment
+		CLIDisplay.task(I18n.formatMessage("commands.build.progress.preparingBuildEnvironment"));
+
+		// Find all Move projects in the directory tree
+		const moveProjects: string[] = [];
+		await searchDirectoryForMoveToml(executionDir, moveProjects);
+
+		for (const projectRoot of moveProjects) {
+			CLIDisplay.value("Prepared project", projectRoot, 1);
+		}
 
 		const finalJson = {
 			testnet: {},
@@ -106,7 +130,6 @@ export async function actionCommandBuild(
 				const existingData = await fsPromises.readFile(normalizedOutput, "utf8");
 				const existingJson = JSON.parse(existingData);
 
-				// Merge existing data, preserving network-specific deployed package IDs
 				if (existingJson.testnet) {
 					Object.assign(finalJson.testnet, existingJson.testnet);
 				}
@@ -117,23 +140,30 @@ export async function actionCommandBuild(
 					Object.assign(finalJson.mainnet, existingJson.mainnet);
 				}
 
-				CLIDisplay.value("Merging with existing JSON", normalizedOutput);
+				CLIDisplay.value(
+					I18n.formatMessage("commands.build.labels.mergingWithExistingJson"),
+					normalizedOutput
+				);
 			} catch (err) {
 				throw new GeneralError(
 					"commands",
-					"Failed to read existing output JSON",
+					"commands.build.failedReadingOutputJson",
 					{ file: normalizedOutput },
 					err
 				);
 			}
 		} else {
-			CLIDisplay.value("No existing JSON found", "Creating new JSON structure", 1);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.build.labels.noExistingJsonFound"),
+				I18n.formatMessage("commands.build.labels.creatingNewJsonStructure"),
+				1
+			);
 		}
 
 		CLIDisplay.break();
 
 		for (const moveFile of matchedFiles) {
-			CLIDisplay.task("Processing Move file", moveFile);
+			CLIDisplay.task(I18n.formatMessage("commands.build.progress.processingMoveFile"), moveFile);
 			try {
 				const compiled = await processMoveFile(moveFile);
 				if (compiled) {
@@ -153,7 +183,12 @@ export async function actionCommandBuild(
 					CLIDisplay.value(`Updated ${network} package`, contractName, 2);
 				}
 			} catch (err) {
-				throw new GeneralError("commands", "Contract processing failed", { file: moveFile }, err);
+				throw new GeneralError(
+					"commands",
+					"commands.build.contractProcessingFailed",
+					{ file: moveFile },
+					err
+				);
 			}
 			CLIDisplay.break();
 		}
@@ -164,13 +199,13 @@ export async function actionCommandBuild(
 		} catch (err) {
 			throw new GeneralError(
 				"commands",
-				"Failed to create directory",
+				"commands.build.mkdirFailed",
 				{ dir: path.dirname(normalizedOutput) },
 				err
 			);
 		}
 
-		CLIDisplay.task("Writing JSON file...");
+		CLIDisplay.task(I18n.formatMessage("commands.build.progress.writingJsonFile"));
 		await CLIUtils.writeJsonFile(normalizedOutput, finalJson, true);
 
 		CLIDisplay.break();
@@ -191,27 +226,39 @@ async function processMoveFile(moveFile: string): Promise<{
 	packageData: string | string[];
 } | null> {
 	// The contract name is based on the .move file's base name in kebab-case
-	const { name: baseName, dir } = path.parse(moveFile);
-	const parentDir = path.resolve(dir, "../");
+	const { name: baseName } = path.parse(moveFile);
 	const contractName = StringHelper.kebabCase(baseName);
 
 	// Find the "project root" (the directory containing Move.toml).
 	const projectRoot = getProjectRoot(moveFile);
 
-	CLIDisplay.value("Contract Name", contractName, 1);
-	CLIDisplay.value("Platform", "iota", 1);
+	CLIDisplay.value(I18n.formatMessage("commands.build.labels.contractName"), contractName, 1);
+	CLIDisplay.value(I18n.formatMessage("commands.build.labels.platform"), "iota", 1);
 
 	// Compile the contract
 	try {
 		const cliArgs = ["move", "build"];
 
-		CLIDisplay.value("Compile Command", `iota ${cliArgs.join(" ")}`, 1);
-		CLIDisplay.value("Working Directory", parentDir, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.build.labels.compileCommand"),
+			`iota ${cliArgs.join(" ")}`,
+			1
+		);
+		CLIDisplay.value(I18n.formatMessage("commands.build.labels.workingDirectory"), projectRoot, 1);
 
-		await CLIUtils.runShellApp("iota", cliArgs, parentDir);
-		CLIDisplay.value("Compile Result", "Build completed", 1);
+		await CLIUtils.runShellApp("iota", cliArgs, projectRoot);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.build.labels.compileResult"),
+			"Build completed",
+			1
+		);
 	} catch (error) {
-		throw new GeneralError("commands", "Build failed", { platform: "iota", file: moveFile }, error);
+		throw new GeneralError(
+			"commands",
+			"commands.build.buildFailed",
+			{ platform: "iota", file: moveFile },
+			error
+		);
 	}
 
 	// Get the bytecode modules
@@ -221,14 +268,22 @@ async function processMoveFile(moveFile: string): Promise<{
 	try {
 		await fsPromises.access(bytecodeModulesPath);
 	} catch {
-		CLIDisplay.value("Warning: No bytecode modules folder found", contractName, 2);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.build.warnings.noBytecodeModulesFolder", { contractName }),
+			"",
+			2
+		);
 		return null;
 	}
 
 	const moduleFiles = await fsPromises.readdir(bytecodeModulesPath);
 	const mvFiles = moduleFiles.filter(f => f.endsWith(".mv"));
 	if (mvFiles.length === 0) {
-		CLIDisplay.value("Warning: No .mv files found", contractName, 2);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.build.warnings.noMvFilesFound", { contractName }),
+			"",
+			2
+		);
 		return null;
 	}
 
@@ -248,7 +303,11 @@ async function processMoveFile(moveFile: string): Promise<{
 	const computedPackageIdBytes = Sha3.sum256(concatenated);
 	const computedPackageId = `${Converter.bytesToHex(computedPackageIdBytes, true)}`;
 
-	CLIDisplay.value("Computed Package ID", computedPackageId, 2);
+	CLIDisplay.value(
+		I18n.formatMessage("commands.build.labels.computedPackageId"),
+		computedPackageId,
+		2
+	);
 
 	// If multiple modules, store them as an array
 	const packageData = modulesBase64.length === 1 ? modulesBase64[0] : modulesBase64;
@@ -270,20 +329,6 @@ function getProjectRoot(moveFilePath: string): string {
 }
 
 /**
- * Verify the IOTA SDK is installed.
- * @internal
- */
-async function verifyIotaSDK(): Promise<void> {
-	try {
-		CLIDisplay.section("Checking IOTA SDK...");
-		await CLIUtils.runShellApp("iota", ["--version"], process.cwd());
-		CLIDisplay.break();
-	} catch (err) {
-		throw new GeneralError("commands", "IOTA SDK not installed", { platform: "iota" }, err);
-	}
-}
-
-/**
  * Normalize paths and resolve working directory for cross-platform compatibility.
  * @param inputGlob The input glob pattern
  * @param outputJson The output JSON file path
@@ -297,7 +342,6 @@ function normalizePathsAndWorkingDir(
 	normalizedOutput: string;
 	executionDir: string;
 } {
-	// Get the directory where the command was run
 	const executionDir = process.cwd();
 
 	// Normalize paths for cross-platform compatibility
@@ -309,22 +353,6 @@ function normalizePathsAndWorkingDir(
 		normalizedOutput,
 		executionDir
 	};
-}
-
-/**
- * Prepare build environment for network-specific compilation.
- * @param network Target network (used for environment context)
- * @param outputDir Directory where the output JSON will be placed
- */
-async function prepareBuildEnvironment(network: NetworkTypes, outputDir: string): Promise<void> {
-	CLIDisplay.task("Preparing build environment...");
-
-	// Find all Move projects in the directory tree
-	const moveProjects = await findMoveProjects(outputDir);
-
-	for (const projectRoot of moveProjects) {
-		CLIDisplay.value("Prepared project", projectRoot, 1);
-	}
 }
 
 /**
@@ -342,23 +370,10 @@ async function searchDirectoryForMoveToml(dir: string, moveProjects: string[]): 
 			if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
 				await searchDirectoryForMoveToml(fullPath, moveProjects);
 			} else if (entry.isFile() && entry.name === "Move.toml") {
-				// Add the directory containing Move.toml, not the file itself
 				moveProjects.push(dir);
 			}
 		}
 	} catch {
 		// Ignore directories that can't be read
 	}
-}
-
-/**
- * Find all Move project directories in a directory tree.
- * @param rootDir Root directory to search
- * @returns Array of project directories containing Move.toml files
- */
-async function findMoveProjects(rootDir: string): Promise<string[]> {
-	const moveProjects: string[] = [];
-	await searchDirectoryForMoveToml(rootDir, moveProjects);
-	// Remove duplicates in case a directory is found multiple times
-	return Array.from(new Set(moveProjects));
 }

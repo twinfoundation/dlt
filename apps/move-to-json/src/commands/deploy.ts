@@ -4,8 +4,9 @@ import { exec } from "node:child_process";
 import { promises as fsPromises } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { CLIDisplay } from "@twin.org/cli-core";
-import { GeneralError, Is, Converter } from "@twin.org/core";
+import { GeneralError, Is, Converter, I18n } from "@twin.org/core";
 import { Bip39 } from "@twin.org/crypto";
 import type { Command } from "commander";
 import { config as dotenvConfig } from "dotenv";
@@ -18,32 +19,9 @@ import {
 	getDeploymentMnemonic,
 	getDeploymentSeed
 } from "../utils/envSetup.js";
+import { verifyIotaSDK } from "../utils/iotaUtils.js";
 
-/**
- * Execute a command asynchronously and capture output.
- * @param command The command to execute
- * @param options Execution options
- * @param options.cwd Working directory for command execution
- * @returns The stdout output
- */
-async function execAsync(command: string, options?: { cwd?: string }): Promise<string> {
-	// TODO: Is this the best way, the best practice?
-	return new Promise((resolve, reject) => {
-		exec(command, { encoding: "utf8", ...options }, (error, stdout, stderr) => {
-			if (error) {
-				reject(
-					new GeneralError("commands", `Command failed: ${error.message}\nstderr: ${stderr}`, {
-						command,
-						error: error.message,
-						stderr
-					})
-				);
-			} else {
-				resolve(stdout.trim());
-			}
-		});
-	});
-}
+const execAsync = promisify(exec);
 
 /**
  * Build the deploy command.
@@ -52,11 +30,24 @@ async function execAsync(command: string, options?: { cwd?: string }): Promise<s
 export function buildCommandDeploy(program: Command): void {
 	program
 		.command("deploy")
-		.description("Deploy compiled contracts to the specified network")
-		.option("--contracts <path>", "Path to compiled contracts file", "compiled-modules.json")
-		.requiredOption("-n, --network <network>", "Target network (testnet, devnet, mainnet)")
-		.option("--dry-run", "Perform a dry run without actual deployment")
-		.option("-f, --force", "Force redeployment even if already deployed")
+		.description(I18n.formatMessage("commands.deploy.description"))
+		.option(
+			I18n.formatMessage("commands.deploy.options.contracts.param"),
+			I18n.formatMessage("commands.deploy.options.contracts.description"),
+			"compiled-modules.json"
+		)
+		.requiredOption(
+			I18n.formatMessage("commands.deploy.options.network.param"),
+			I18n.formatMessage("commands.deploy.options.network.description")
+		)
+		.option(
+			I18n.formatMessage("commands.deploy.options.dryRun.param"),
+			I18n.formatMessage("commands.deploy.options.dryRun.description")
+		)
+		.option(
+			I18n.formatMessage("commands.deploy.options.force.param"),
+			I18n.formatMessage("commands.deploy.options.force.description")
+		)
 		.action(actionCommandDeploy);
 }
 
@@ -68,50 +59,52 @@ export function buildCommandDeploy(program: Command): void {
 async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false): Promise<void> {
 	try {
 		CLIDisplay.task(
-			dryRun ? "Checking IOTA CLI environment..." : "Setting IOTA CLI environment..."
+			dryRun
+				? I18n.formatMessage("commands.deploy.progress.checkingEnvironment")
+				: I18n.formatMessage("commands.deploy.progress.settingEnvironment")
 		);
 
 		// Check if the environment exists
-		const envListOutput = await execAsync("iota client envs");
+		const { stdout: envListOutput } = await execAsync("iota client envs");
 		if (!envListOutput.includes(network)) {
-			throw new GeneralError(
-				"commands",
-				`IOTA CLI environment '${network}' not found. Please configure it first.`,
-				{
-					network,
-					availableEnvironments: envListOutput,
-					setupCommand: `iota client new-env --alias ${network} --rpc <RPC_URL>`
-				}
-			);
+			throw new GeneralError("commands", "commands.deploy.environmentNotFound", {
+				network,
+				availableEnvironments: envListOutput,
+				setupCommand: `iota client new-env --alias ${network} --rpc <RPC_URL>`
+			});
 		}
 
 		if (dryRun) {
-			CLIDisplay.value("IOTA environment check", `✅ ${network} environment exists`, 1);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.iotaEnvironmentCheck"),
+				`✅ ${network} environment exists`,
+				1
+			);
 			return;
 		}
 
 		// Switch to target network environment
 		await execAsync(`iota client switch --env ${network}`);
 
-		CLIDisplay.value("Switched IOTA environment", network, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.switchedIotaEnvironment"),
+			network,
+			1
+		);
 
 		// Verify the switch was successful
-		const activeEnv = await execAsync("iota client active-env");
+		const { stdout: activeEnv } = await execAsync("iota client active-env");
 		if (!activeEnv.includes(network)) {
-			throw new GeneralError(
-				"commands",
-				`Failed to switch to ${network} environment. Active environment: ${activeEnv}`,
-				{ network, activeEnv }
-			);
+			throw new GeneralError("commands", "commands.deploy.environmentSwitchFailed", {
+				network,
+				activeEnv
+			});
 		}
 	} catch (error) {
-		if (error instanceof GeneralError) {
-			throw error;
-		}
 		throw new GeneralError(
 			"commands",
-			`Failed to ${dryRun ? "check" : "switch to"} ${network} environment. Make sure IOTA CLI is configured with this environment.`,
-			{ network },
+			"commands.deploy.environmentOperationFailed",
+			{ network, operation: dryRun ? "check" : "switch to" },
 			error
 		);
 	}
@@ -131,7 +124,7 @@ export async function actionCommandDeploy(opts: {
 	dryRun?: boolean;
 	force?: boolean;
 }): Promise<void> {
-	CLIDisplay.section("Deploy Contracts");
+	CLIDisplay.section(I18n.formatMessage("commands.deploy.section.deployContracts"));
 
 	try {
 		const contractsPath = opts.contracts ?? "compiled-modules.json";
@@ -140,9 +133,12 @@ export async function actionCommandDeploy(opts: {
 		const force = opts.force ?? false;
 
 		if (!network) {
-			CLIDisplay.error("Network is required");
+			CLIDisplay.error(I18n.formatMessage("commands.deploy.messages.networkRequired"));
 			return;
 		}
+
+		// Verify the IOTA SDK before we do anything else
+		await verifyIotaSDK();
 
 		// Check/switch to target network environment BEFORE loading config
 		await setIotaEnvironment(network, dryRun);
@@ -158,7 +154,7 @@ export async function actionCommandDeploy(opts: {
 
 		const networkContracts = contractsData[network];
 		if (!networkContracts || typeof networkContracts !== "object") {
-			throw new GeneralError("commands", `No contracts found for network: ${network}`, {
+			throw new GeneralError("commands", "commands.deploy.noContractsFound", {
 				network,
 				contractsPath
 			});
@@ -199,14 +195,13 @@ async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetwork
 		const result = dotenvConfig({ path: envFilePath });
 
 		if (result.error) {
-			throw new GeneralError("commands", `Failed to load environment file: ${envFilePath}`, {
+			throw new GeneralError("commands", "commands.deploy.envFileLoadFailed", {
 				network,
 				envFilePath,
 				error: result.error.message
 			});
 		}
 
-		// TODO: is this the best way to do this?
 		// Build config object from environment variables
 		const config: INetworkConfig = {
 			network,
@@ -229,26 +224,9 @@ async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetwork
 			}
 		};
 
-		// TODO: Remove this. Gas station will not be used here!
-		// Add gas station configuration if available
-		if (process.env.GAS_STATION_URL && process.env.GAS_STATION_AUTH) {
-			config.deployment.gasStation = {
-				url: process.env.GAS_STATION_URL,
-				authToken: process.env.GAS_STATION_AUTH
-			};
-		}
-
 		return config;
 	} catch (err) {
-		if (err instanceof GeneralError) {
-			throw err;
-		}
-		throw new GeneralError(
-			"commands",
-			"Failed to load network configuration from environment",
-			{ network },
-			err
-		);
+		throw new GeneralError("commands", "commands.deploy.networkConfigInvalid", { network }, err);
 	}
 }
 
@@ -260,7 +238,7 @@ async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetwork
  */
 function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkTypes): void {
 	if (config.network !== expectedNetwork) {
-		throw new GeneralError("commands", "Network mismatch", {
+		throw new GeneralError("commands", "commands.deploy.networkMismatch", {
 			expected: expectedNetwork,
 			actual: config.network,
 			help: `Configuration file specifies '${config.network}' but command targets '${expectedNetwork}'`
@@ -268,11 +246,11 @@ function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkT
 	}
 
 	if (!config.rpc?.url) {
-		throw new GeneralError("commands", "Invalid configuration: RPC URL is required");
+		throw new GeneralError("commands", "commands.deploy.rpcUrlRequired");
 	}
 
 	if (!config.deployment?.gasBudget) {
-		throw new GeneralError("commands", "Invalid configuration: gas budget is required");
+		throw new GeneralError("commands", "commands.deploy.gasBudgetRequired");
 	}
 }
 
@@ -287,12 +265,17 @@ async function loadCompiledContracts(contractsPath: string): Promise<{ [key: str
 		const contracts = JSON.parse(content);
 
 		if (!contracts || typeof contracts !== "object") {
-			throw new GeneralError("commands", "Invalid contracts file: must contain an object");
+			throw new GeneralError("commands", "commands.deploy.invalidContractsFile");
 		}
 
 		return contracts;
 	} catch (err) {
-		throw new GeneralError("commands", "Failed to load compiled contracts", { contractsPath }, err);
+		throw new GeneralError(
+			"commands",
+			"commands.deploy.contractsLoadFailed",
+			{ contractsPath },
+			err
+		);
 	}
 }
 
@@ -316,18 +299,36 @@ async function deployContract(
 	dryRun: boolean,
 	force: boolean
 ): Promise<void> {
-	CLIDisplay.task(`Deploying contract: ${contractName} (${network})`);
+	CLIDisplay.task(
+		I18n.formatMessage("commands.deploy.progress.deployingContract", { contractName, network })
+	);
 
 	if (contractData.deployedPackageId && !force) {
-		CLIDisplay.value("Contract already deployed", contractData.deployedPackageId, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.contractAlreadyDeployed"),
+			contractData.deployedPackageId,
+			1
+		);
 		return;
 	}
 
 	if (dryRun) {
-		CLIDisplay.value("DRY RUN: Would deploy contract", `${contractName} (${network})`, 1);
-		CLIDisplay.value("DRY RUN: Package ID", contractData.packageId, 1);
-		CLIDisplay.value("DRY RUN: Gas Budget", config.deployment.gasBudget.toString(), 1);
-		CLIDisplay.value("DRY RUN: RPC URL", config.rpc.url, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.dryRunWouldDeploy"),
+			`${contractName} (${network})`,
+			1
+		);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.dryRunPackageId"),
+			contractData.packageId,
+			1
+		);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.dryRunGasBudget"),
+			config.deployment.gasBudget.toString(),
+			1
+		);
+		CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.dryRunRpcUrl"), config.rpc.url, 1);
 
 		// For mainnet, show mnemonic validation info
 		if (network === "mainnet") {
@@ -337,24 +338,37 @@ async function deployContract(
 					network,
 					config.deployment.wallet.addressIndex
 				);
-				CLIDisplay.value("DRY RUN: Wallet Address", walletAddress, 1);
+				CLIDisplay.value(
+					I18n.formatMessage("commands.deploy.labels.dryRunWalletAddress"),
+					walletAddress,
+					1
+				);
 
 				// Check wallet balance
 				const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
 				const balanceIota = nanosToIota(balanceNanos);
-				CLIDisplay.value("DRY RUN: Wallet Balance", `${balanceIota.toFixed(2)} IOTA`, 1);
+				CLIDisplay.value(
+					I18n.formatMessage("commands.deploy.labels.dryRunWalletBalance"),
+					`${balanceIota.toFixed(2)} IOTA`,
+					1
+				);
 
 				if (balanceNanos < config.deployment.gasBudget) {
 					CLIDisplay.value(
-						"⚠️  WARNING",
-						`Insufficient balance: ${balanceIota.toFixed(2)} IOTA < ${nanosToIota(config.deployment.gasBudget).toFixed(2)} IOTA`,
+						I18n.formatMessage("commands.deploy.labels.warning"),
+						I18n.formatMessage("commands.deploy.labels.insufficientBalanceWarning", {
+							currentBalance: balanceIota.toFixed(2),
+							requiredBalance: nanosToIota(config.deployment.gasBudget).toFixed(2)
+						}),
 						2
 					);
 				}
 			} catch (err) {
 				CLIDisplay.value(
-					"⚠️  WARNING",
-					`Environment validation failed: ${(err as Error).message}`,
+					I18n.formatMessage("commands.deploy.labels.warning"),
+					I18n.formatMessage("commands.deploy.labels.environmentValidationWarning", {
+						message: (err as Error).message
+					}),
 					2
 				);
 			}
@@ -370,19 +384,27 @@ async function deployContract(
 				network,
 				config.deployment.wallet.addressIndex
 			);
-			CLIDisplay.value("Wallet Address", walletAddress, 1);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.walletAddress"),
+				walletAddress,
+				1
+			);
 
 			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
 			const balanceIota = nanosToIota(balanceNanos);
-			CLIDisplay.value("Wallet Balance", `${balanceIota.toFixed(2)} IOTA`, 1);
 			CLIDisplay.value(
-				"Gas Budget",
+				I18n.formatMessage("commands.deploy.labels.walletBalance"),
+				`${balanceIota.toFixed(2)} IOTA`,
+				1
+			);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.gasBudget"),
 				`${nanosToIota(config.deployment.gasBudget).toFixed(2)} IOTA`,
 				1
 			);
 
 			if (balanceNanos < config.deployment.gasBudget) {
-				throw new GeneralError("commands", "Insufficient wallet balance for deployment", {
+				throw new GeneralError("commands", "commands.deploy.insufficientBalance", {
 					balance: balanceIota,
 					required: nanosToIota(config.deployment.gasBudget),
 					walletAddress
@@ -396,14 +418,22 @@ async function deployContract(
 		contractData.deployedPackageId = deploymentResult.packageId;
 		contractData.upgradeCap = deploymentResult.upgradeCap ?? null;
 
-		CLIDisplay.value("Deployed Package ID", deploymentResult.packageId, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.deployedPackageIdResult"),
+			deploymentResult.packageId,
+			1
+		);
 		if (deploymentResult.upgradeCap) {
-			CLIDisplay.value("UpgradeCap ID", deploymentResult.upgradeCap, 1);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.upgradeCapId"),
+				deploymentResult.upgradeCap,
+				1
+			);
 		}
 	} catch (err) {
 		throw new GeneralError(
 			"commands",
-			"Contract deployment failed",
+			"commands.deploy.deploymentFailed",
 			{ contract: contractName },
 			err
 		);
@@ -431,7 +461,7 @@ async function getWalletAddressFromSeed(seed: string, addressIndex: number): Pro
 		const addressMatch = addressRegex.exec(addressContent);
 
 		if (!addressMatch?.[1]) {
-			throw new GeneralError("commands", "Could not find address at index {addressIndex}", {
+			throw new GeneralError("commands", "commands.deploy.addressNotFound", {
 				addressIndex
 			});
 		}
@@ -442,8 +472,12 @@ async function getWalletAddressFromSeed(seed: string, addressIndex: number): Pro
 		try {
 			await fsPromises.unlink(addressEnvFile);
 		} catch {
-			// TODO: Do we need to handle something here?
-			// Ignore cleanup errors
+			// Log cleanup failures but don't throw - this is not critical to the main operation
+			CLIDisplay.value(
+				"⚠️  Cleanup Warning",
+				`Failed to remove temporary file: ${addressEnvFile}`,
+				2
+			);
 		}
 	}
 }
@@ -505,7 +539,7 @@ function nanosToIota(nanos: number): number {
 async function getWalletBalance(address: string, rpcUrl: string): Promise<number> {
 	try {
 		const balanceCmd = `iota client balance "${address}" --json`;
-		const output = await execAsync(balanceCmd);
+		const { stdout: output } = await execAsync(balanceCmd);
 
 		// Parse the JSON output: [[[metadata, coinObjects]], hasNextPage]
 		const balanceData = JSON.parse(output) as unknown[];
@@ -554,7 +588,12 @@ async function getWalletBalance(address: string, rpcUrl: string): Promise<number
 
 		return totalBalance;
 	} catch (err) {
-		throw new GeneralError("commands", "Failed to get wallet balance", { address, rpcUrl }, err);
+		throw new GeneralError(
+			"commands",
+			"commands.deploy.balanceCheckFailed",
+			{ address, rpcUrl },
+			err
+		);
 	}
 }
 
@@ -581,14 +620,22 @@ async function deployWithIotaCli(
 
 	const moveProjectRoot = path.dirname(moveTomlPaths[0]);
 
-	CLIDisplay.value("Move Project Root", moveProjectRoot, 1);
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.moveProjectRoot"),
+		moveProjectRoot,
+		1
+	);
 
 	const publishCmd = `iota client publish --gas-budget ${gasBudget} --json`;
 
-	CLIDisplay.value("Publish Command", publishCmd, 1);
-	CLIDisplay.value("Working Directory", moveProjectRoot, 1);
+	CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.publishCommand"), publishCmd, 1);
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.workingDirectory"),
+		moveProjectRoot,
+		1
+	);
 
-	const output = await execAsync(publishCmd, { cwd: moveProjectRoot });
+	const { stdout: output } = await execAsync(publishCmd, { cwd: moveProjectRoot });
 	const result = JSON.parse(output);
 
 	// Extract package ID from published object
@@ -597,7 +644,7 @@ async function deployWithIotaCli(
 	)?.packageId;
 
 	if (!packageId) {
-		throw new GeneralError("commands", "Could not find package ID in deployment result", {
+		throw new GeneralError("commands", "commands.deploy.packageIdNotFound", {
 			result
 		});
 	}
@@ -660,8 +707,17 @@ async function updateContractsFile(
 	try {
 		const content = JSON.stringify(contractsData, null, "\t");
 		await fsPromises.writeFile(contractsPath, content, "utf8");
-		CLIDisplay.value("Updated contracts file", contractsPath, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.updatedContractsFile"),
+			contractsPath,
+			1
+		);
 	} catch (err) {
-		throw new GeneralError("commands", "Failed to update contracts file", { contractsPath }, err);
+		throw new GeneralError(
+			"commands",
+			"commands.deploy.contractsFileUpdateFailed",
+			{ contractsPath },
+			err
+		);
 	}
 }

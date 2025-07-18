@@ -28,7 +28,8 @@
 ✅ check nft structure and make sure our tool will work
 ✅ update readme with the latest and include how to install CLI with HOMEBREW
 * Check TODO's in the codebase and make sure we are covering all of them.
-* Check all GeneralError structures and refactor and add messages to locales.
+✅ Clean up the move-to-json code and see if it adheres to the code style.
+  ✅ Check all GeneralError structures and refactor and add messages to locales.
 
 
 
