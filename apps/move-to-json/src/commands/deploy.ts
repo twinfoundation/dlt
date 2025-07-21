@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { CLIDisplay } from "@twin.org/cli-core";
 import { GeneralError, Is, Converter, I18n } from "@twin.org/core";
 import { Bip39 } from "@twin.org/crypto";
+import { IotaFaucetConnector } from "@twin.org/wallet-connector-iota";
 import type { Command } from "commander";
 import { config as dotenvConfig } from "dotenv";
 import type { ICoinObject } from "../models/ICoinObject";
@@ -377,18 +378,16 @@ async function deployContract(
 	}
 
 	try {
-		// For mainnet, validate environment and check balance
+		// Get wallet address for all networks
+		const walletAddress = await getDeploymentWalletAddress(
+			network,
+			config.deployment.wallet.addressIndex
+		);
+		CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.walletAddress"), walletAddress, 1);
+
 		if (network === "mainnet") {
+			// For mainnet, validate environment and check balance
 			validateDeploymentEnvironment(network);
-			const walletAddress = await getDeploymentWalletAddress(
-				network,
-				config.deployment.wallet.addressIndex
-			);
-			CLIDisplay.value(
-				I18n.formatMessage("commands.deploy.labels.walletAddress"),
-				walletAddress,
-				1
-			);
 
 			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
 			const balanceIota = nanosToIota(balanceNanos);
@@ -409,6 +408,37 @@ async function deployContract(
 					required: nanosToIota(config.deployment.gasBudget),
 					walletAddress
 				});
+			}
+		} else if (network === "testnet" || network === "devnet") {
+			// For testnet/devnet, request funds from faucet and validate balance
+			await requestFaucetFunds(network, walletAddress);
+
+			// Check balance after faucet request
+			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
+			const balanceIota = nanosToIota(balanceNanos);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.walletBalance"),
+				`${balanceIota.toFixed(2)} IOTA`,
+				1
+			);
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.gasBudget"),
+				`${nanosToIota(config.deployment.gasBudget).toFixed(2)} IOTA`,
+				1
+			);
+
+			if (balanceNanos < config.deployment.gasBudget) {
+				CLIDisplay.value(
+					I18n.formatMessage("commands.deploy.labels.warning"),
+					I18n.formatMessage("commands.deploy.labels.insufficientBalanceAfterFaucet", {
+						network,
+						balance: balanceIota.toFixed(2),
+						required: nanosToIota(config.deployment.gasBudget).toFixed(2),
+						walletAddress
+					}),
+					2
+				);
+				// Still attempt deployment - maybe there are merged coins or other sources
 			}
 		}
 
@@ -594,6 +624,64 @@ async function getWalletBalance(address: string, rpcUrl: string): Promise<number
 			{ address, rpcUrl },
 			err
 		);
+	}
+}
+
+/**
+ * Request funds from the faucet for testnet or devnet deployment.
+ * @param network The target network (testnet or devnet).
+ * @param walletAddress The wallet address to fund.
+ * @returns Promise that resolves when funding is complete.
+ */
+async function requestFaucetFunds(network: NetworkTypes, walletAddress: string): Promise<void> {
+	if (network !== "testnet" && network !== "devnet") {
+		return; // Only fund for testnet and devnet
+	}
+
+	try {
+		CLIDisplay.task(
+			I18n.formatMessage("commands.deploy.progress.requestingFaucetFunds", { network })
+		);
+
+		const faucetConnector = new IotaFaucetConnector({
+			config: {
+				endpoint: `https://faucet.${network}.iota.cafe`,
+				clientOptions: { url: `https://api.${network}.iota.cafe` },
+				network
+			}
+		});
+
+		const amountFunded = await faucetConnector.fundAddress(
+			"move-to-json-deployer",
+			walletAddress,
+			60
+		);
+
+		if (amountFunded > 0n) {
+			const amountIota = nanosToIota(Number(amountFunded));
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.faucetFundsRequested"),
+				`${amountIota.toFixed(2)} IOTA`,
+				1
+			);
+		} else {
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.warning"),
+				I18n.formatMessage("commands.deploy.labels.faucetNoFundsAdded", { network }),
+				2
+			);
+		}
+	} catch (err) {
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.warning"),
+			I18n.formatMessage("commands.deploy.labels.faucetRequestFailed", {
+				network,
+				error: (err as Error).message
+			}),
+			2
+		);
+		// Don't throw - allow deployment to proceed even if faucet fails
+		// The user might already have sufficient funds
 	}
 }
 

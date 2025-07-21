@@ -18,6 +18,7 @@ brew install iotaledger/tap/iota
 For other platforms or installation from source, see the [official IOTA installation guide](https://docs.iota.org/developer/getting-started/install-iota).
 
 **Verify installation:**
+
 ```bash
 iota --version
 ```
@@ -34,7 +35,7 @@ npm install -g @twin.org/move-to-json
 # Build contracts for mainnet using npx
 npx move-to-json build "src/**/*.move" --network mainnet --output compiled-modules.json
 
-# Deploy to mainnet using npx  
+# Deploy to mainnet using npx
 npx move-to-json deploy --network mainnet
 ```
 
@@ -51,7 +52,7 @@ Copy the environment templates for each network you plan to use:
 ```bash
 # Copy environment templates for each network
 cp configs/testnet.env.example configs/testnet.env
-cp configs/devnet.env.example configs/devnet.env  
+cp configs/devnet.env.example configs/devnet.env
 cp configs/mainnet.env.example configs/mainnet.env
 ```
 
@@ -65,20 +66,22 @@ Use the wallet CLI to generate secure mnemonics and then manually update the app
 
 Each network has its own configuration file in the `configs/` directory with the required deployment mnemonic:
 
-| Network | File | Required Variable |
-|---------|------|-------------------|
+| Network | File                  | Required Variable           |
+| ------- | --------------------- | --------------------------- |
 | Testnet | `configs/testnet.env` | `TESTNET_DEPLOYER_MNEMONIC` |
-| Devnet | `configs/devnet.env` | `DEVNET_DEPLOYER_MNEMONIC` |
+| Devnet  | `configs/devnet.env`  | `DEVNET_DEPLOYER_MNEMONIC`  |
 | Mainnet | `configs/mainnet.env` | `MAINNET_DEPLOYER_MNEMONIC` |
 
 ### Security Best Practices
 
 #### Local Development
+
 - Store credentials in `configs/*.env` files (never commit to git - only commit `.example` files)
 - Use test mnemonics with faucet funds for testnet/devnet
 - Use dedicated deployment wallets separate from personal wallets
 
 #### CI/CD and Production
+
 - Store credentials in GitHub Secrets or your CI/CD secrets manager
 - Use hardware wallets or HSM for mainnet deployment keys
 - Implement approval workflows for mainnet deployments
@@ -87,12 +90,14 @@ Each network has its own configuration file in the `configs/` directory with the
 ### Generating Credentials
 
 #### 1. Generate Mnemonic and Seed
+
 ```bash
 # Generate a new 24-word mnemonic and save to wallet.env
 npx "@twin.org/wallet-cli" mnemonic --env wallet.env
 ```
 
 #### 2. Generate Addresses from Seed
+
 ```bash
 # Generate 5 addresses and save to address.env
 npx "@twin.org/wallet-cli" address --load-env wallet.env --seed '!SEED' --count 5 --env address.env
@@ -113,21 +118,25 @@ move-to-json build "src/**/*.move" --network <network> [--output <file>]
 ```
 
 **Options:**
+
 - `--network <network>` - Target network (testnet/devnet/mainnet) **[Required]**
 - `--output <file>` - Output JSON file (default: compiled-modules.json)
 
 **What it does:**
+
 1. Validates environment variables for the target network
 2. Cleans build artifacts and Move.lock files
 3. Compiles contracts using unified Move.toml (same bytecode for all networks)
 4. Generates network-aware JSON with package IDs and base64 modules
 
 **Key Changes:**
+
 - **Unified Move.toml**: Uses single Move.toml file with `framework/testnet` for consistent builds
 - **Network-agnostic compilation**: Same bytecode works across all networks
 - **Environment-aware**: Network targeting handled by IOTA CLI environments, not Move.toml
 
 **Example:**
+
 ```bash
 # Build for testnet
 npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/compiled-modules/compiled-modules.json
@@ -149,12 +158,14 @@ move-to-json deploy --network <network> [options]
 ```
 
 **Options:**
+
 - `--network <network>` - Network identifier (testnet/devnet/mainnet) **[Required]**
 - `--contracts <file>` - Compiled modules JSON file (default: compiled-modules.json)
 - `--dry-run` - Simulate deployment without executing
 - `--force` - Force redeployment of existing packages
 
 **What it does:**
+
 1. Switches IOTA CLI to target network environment
 2. Loads network-specific configuration from `configs/{network}.env` file
 3. Validates deployment credentials are available
@@ -165,6 +176,7 @@ move-to-json deploy --network <network> [options]
 8. Updates JSON with deployed package information
 
 **Key Changes:**
+
 - **Environment switching**: Automatically switches IOTA CLI to target network
 - **Network targeting**: Uses IOTA CLI environments instead of Move.toml configuration
 - **Consistent deployment**: Same compiled bytecode deployed to all networks
@@ -172,6 +184,7 @@ move-to-json deploy --network <network> [options]
 
 **Prerequisites:**
 Ensure IOTA CLI environments are configured:
+
 ```bash
 # Check available environments
 iota client envs
@@ -183,11 +196,12 @@ iota client new-env --alias devnet --rpc https://api.devnet.iota.cafe
 ```
 
 **Example:**
+
 ```bash
 # Deploy to testnet
 npx move-to-json deploy --network testnet
 
-# Deploy to mainnet  
+# Deploy to mainnet
 npx move-to-json deploy --network mainnet
 
 # Dry run (simulation)
@@ -196,6 +210,7 @@ npx move-to-json deploy --network testnet --dry-run
 
 **Output:**
 The deployment saves both Package ID and UpgradeCap ID:
+
 ```json
 {
   "testnet": {
@@ -225,9 +240,9 @@ version = "0.0.1"
 edition = "2024.beta"
 
 [dependencies]
-Iota = { 
-    git = "https://github.com/iotaledger/iota.git", 
-    subdir = "crates/iota-framework/packages/iota-framework", 
+Iota = {
+    git = "https://github.com/iotaledger/iota.git",
+    subdir = "crates/iota-framework/packages/iota-framework",
     rev = "framework/testnet"
 }
 
@@ -279,7 +294,7 @@ When you deploy a Move package on IOTA, the network creates an **UpgradeCap** (U
 The UpgradeCap is a special object that:
 
 - **Controls package upgrades**: Only the holder can upgrade the package
-- **Is created once**: Generated during initial package deployment  
+- **Is created once**: Generated during initial package deployment
 - **Must be preserved**: Lost UpgradeCap = no future upgrades possible
 - **Is network-specific**: Each network deployment gets its own UpgradeCap
 
@@ -291,7 +306,7 @@ The tool stores UpgradeCap IDs in the compiled-modules.json file:
 {
   "testnet": {
     "packageId": "0xabc123...",
-    "package": "base64data...", 
+    "package": "base64data...",
     "deployedPackageId": "0x239ad3ea39f0910a4dc4c98161bcde948fb5ed0d7d7ae6d9a593239c43af748e",
     "upgradeCap": "0xfd6269c28e3931e41aa9d9e08ffabb8162cf1fd0baaef14094b4442e6c743edf"
   }
@@ -312,7 +327,7 @@ iota client call --package 0x2 --module package --function upgrade \
 ### Security Considerations
 
 - **🔐 Keep UpgradeCap secure**: Treat it like a private key
-- **📱 Backup regularly**: Include UpgradeCap IDs in your backup strategy  
+- **📱 Backup regularly**: Include UpgradeCap IDs in your backup strategy
 - **🚫 Never share publicly**: UpgradeCap grants full upgrade control
 - **✅ Version control**: Store compiled-modules.json in secure version control
 
@@ -335,7 +350,7 @@ RPC_TIMEOUT=60000
 GAS_BUDGET=100000000
 CONFIRMATION_TIMEOUT=120
 
-# Wallet Configuration  
+# Wallet Configuration
 MAINNET_DEPLOYER_MNEMONIC="word1 word2 word3 ... word24"
 ADDRESS_INDEX=0
 
@@ -417,8 +432,6 @@ The tool generates a network-aware JSON structure:
   }
 }
 ```
-
-
 
 ## Contributing
 

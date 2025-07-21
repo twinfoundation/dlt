@@ -30,6 +30,13 @@
 				"packageIdNotFound": "Could not find package ID in deployment result",
 				"contractsFileUpdateFailed": "Failed to update contracts file"
 			}
+		},
+		"envSetup": {
+			"envFileLoadFailed": "Failed to load environment file: {envFilePath}",
+			"mnemonicMissing": "Missing deployment mnemonic for {network}. Please set {mnemonicVar} in configs/{network}.env file.\n\nYou can generate a mnemonic using:\nnpx \"@twin.org/wallet-cli\" mnemonic --env wallet.env\n\nThen add the MNEMONIC value to your configs/{network}.env file:\n{mnemonicVar}=\"word1 word2 word3 ... word24\"\n\nSee configs/{network}.env.example for reference.",
+			"mnemonicInvalidFormat": "Invalid mnemonic format for {network}. Expected 24 words, got {wordCount}.\nPlease ensure {mnemonicVar} in configs/{network}.env contains a valid 24-word mnemonic phrase.",
+			"mnemonicValidationFailed": "Mnemonic validation failed",
+			"seedInvalidFormat": "Invalid seed format for {network}. Expected hex string starting with 0x and at least 64 characters.\nPlease ensure {seedVar} in configs/{network}.env contains a valid hex seed value."
 		}
 	},
 	"commands": {
@@ -134,14 +141,18 @@
 				"environmentValidationWarning": "Environment validation failed: {message}",
 				"gasBudget": "Gas Budget",
 				"requiredBalance": "Required Balance",
-				"balanceStatus": "Balance Status"
+				"balanceStatus": "Balance Status",
+				"faucetFundsRequested": "Faucet funds requested",
+				"faucetRequestFailed": "Faucet request failed for {network}: {error}",
+				"insufficientBalanceAfterFaucet": "Insufficient balance after faucet request on {network}: {balance} IOTA < {required} IOTA for wallet {walletAddress}. Attempting deployment anyway."
 			},
 			"progress": {
 				"loadingContracts": "Loading compiled contracts...",
 				"checkingEnvironment": "Checking IOTA CLI environment...",
 				"settingEnvironment": "Setting IOTA CLI environment...",
 				"deployingContract": "Deploying contract: {contractName} ({network})",
-				"updatingContractsFile": "Updating contracts file..."
+				"updatingContractsFile": "Updating contracts file...",
+				"requestingFaucetFunds": "Requesting funds from {network} faucet..."
 			},
 			"messages": {
 				"networkRequired": "Network is required"

@@ -26,7 +26,7 @@ move-to-json build "src/contracts/**/*.move" --output compiled-modules.json
 ### What it does:
 
 - Find all .move files matching the glob pattern
-- Compile each file using the IOTA Move compiler  
+- Compile each file using the IOTA Move compiler
 - Compute deterministic package IDs from compiled bytecode
 - Generate network-aware JSON structure with testnet, devnet, and mainnet sections
 - Each network contains identical packageId and package data, with deployedPackageId initially set to null
@@ -78,6 +78,7 @@ move-to-json deploy --config config/iota-testnet.yaml --network testnet --dry-ru
 Create YAML configuration files for each network:
 
 #### testnet configuration (config/iota-testnet.yaml):
+
 ```yaml
 network: testnet
 platform: iota
@@ -96,10 +97,11 @@ deployment:
 contracts:
   my_contract:
     moduleName: my_contract
-    dependencies: ["0x1", "0x2"]
+    dependencies: ['0x1', '0x2']
 ```
 
 #### mainnet configuration (config/iota-mainnet.yaml):
+
 ```yaml
 network: mainnet
 platform: iota
@@ -146,7 +148,7 @@ Update your package.json scripts:
   "scripts": {
     "build:contracts": "move-to-json build \"src/contracts/**/*.move\" --output src/contracts/compiled-modules.json",
     "deploy:testnet": "move-to-json deploy --config config/iota-testnet.yaml --network testnet",
-    "deploy:devnet": "move-to-json deploy --config config/iota-devnet.yaml --network devnet", 
+    "deploy:devnet": "move-to-json deploy --config config/iota-devnet.yaml --network devnet",
     "deploy:mainnet": "move-to-json deploy --config config/iota-mainnet.yaml --network mainnet"
   }
 }

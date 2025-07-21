@@ -14,7 +14,6 @@
 
 - [NetworkTypes](type-aliases/NetworkTypes.md)
 - [PlatformTypes](type-aliases/PlatformTypes.md)
-- [NetworkType](type-aliases/NetworkType.md)
 
 ## Variables
 
