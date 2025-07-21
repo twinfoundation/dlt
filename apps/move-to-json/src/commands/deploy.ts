@@ -19,6 +19,7 @@ import { Bip39 } from "@twin.org/crypto";
 import { IotaFaucetConnector } from "@twin.org/wallet-connector-iota";
 import type { Command } from "commander";
 import { config as dotenvConfig } from "dotenv";
+import type { ICoinObject } from "../models/ICoinObject";
 import type { IContractData } from "../models/IContractData";
 import type { INetworkConfig } from "../models/INetworkConfig";
 import type { NetworkTypes } from "../models/networkTypes";
@@ -369,7 +370,7 @@ async function deployContract(
 				);
 
 				// Check wallet balance
-				const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
+				const balanceNanos = await getWalletBalance(config.rpc.url);
 				const balanceIota = nanosToIota(balanceNanos);
 				CLIDisplay.value(
 					I18n.formatMessage("commands.deploy.labels.dryRunWalletBalance"),
@@ -412,7 +413,7 @@ async function deployContract(
 			// For mainnet, validate environment and check balance
 			await validateDeploymentEnvironment(network);
 
-			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
+			const balanceNanos = await getWalletBalance(config.rpc.url);
 			const balanceIota = nanosToIota(balanceNanos);
 			CLIDisplay.value(
 				I18n.formatMessage("commands.deploy.labels.walletBalance"),
@@ -437,7 +438,7 @@ async function deployContract(
 			await requestFaucetFunds(network, walletAddress);
 
 			// Check balance after faucet request
-			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
+			const balanceNanos = await getWalletBalance(config.rpc.url);
 			const balanceIota = nanosToIota(balanceNanos);
 			CLIDisplay.value(
 				I18n.formatMessage("commands.deploy.labels.walletBalance"),
@@ -584,71 +585,169 @@ function nanosToIota(nanos: number): number {
 }
 
 /**
- * Get wallet balance using IOTA CLI JSON output and sum all coin objects.
- * @param address The wallet address.
- * @param rpcUrl The RPC URL.
- * @returns The wallet balance in nanos.
+ * Get wallet balance from IOTA CLI.
+ * @param rpcUrl The RPC URL (not used but kept for consistency).
+ * @param timeoutMs Timeout for the balance check.
+ * @returns The total wallet balance in nanoIOTA.
  */
-async function getWalletBalance(address: string, rpcUrl: string): Promise<number> {
+async function getWalletBalance(rpcUrl: string, timeoutMs: number = 30000): Promise<number> {
 	try {
-		const balanceCmd = `iota client balance "${address}" --json`;
-		const { stdout: output } = await execAsync(balanceCmd);
+		const { stdout: output } = await execAsync("iota client balance --json", {
+			timeout: timeoutMs
+		});
 
-		// Parse the JSON output: [[[metadata, coinObjects]], hasNextPage]
-		const balanceData = JSON.parse(output) as unknown[];
-		const hasNextPage = balanceData[1] as boolean;
+		// Parse and validate the JSON structure
+		const balanceResponse = parseBalanceResponse(output);
 
-		// Array structure: [[[metadata, coinObjects]]]
-		const outerArray = balanceData[0] as unknown[];
-		if (!Is.arrayValue(outerArray)) {
-			return 0;
-		}
+		// Calculate total balance from all coins
+		return calculateTotalBalance(balanceResponse.coinObjects);
+	} catch (error) {
+		throw new GeneralError("commands", "commands.deploy.balanceCheckFailed", {}, error);
+	}
+}
 
-		const middleArray = outerArray[0] as unknown[];
-		if (!Is.arrayValue(middleArray)) {
-			return 0;
-		}
+/**
+ * Interface for IOTA balance response structure.
+ */
+interface IBalanceResponse {
+	/**
+	 * Array of coin objects
+	 */
+	coinObjects: ICoinObject[];
+	/**
+	 * Whether there are more pages of results
+	 */
+	hasNextPage: boolean;
+	/**
+	 * Token metadata
+	 */
+	metadata: {
+		decimals: number;
+		name: string;
+		symbol: string;
+		description: string;
+		iconUrl?: string;
+		id: string;
+	};
+}
 
-		// The structure is [metadata, coinObjects]
-		if (middleArray.length < 2) {
-			return 0;
-		}
+/**
+ * Safely parse the IOTA CLI balance response.
+ * @param jsonOutput Raw JSON output from IOTA CLI
+ * @returns Parsed balance response
+ * @throws GeneralError when parsing fails or structure is invalid
+ */
+function parseBalanceResponse(jsonOutput: string): IBalanceResponse {
+	let parsedData: unknown;
 
-		const coinObjects = middleArray[1] as unknown[];
-		if (!Is.arrayValue(coinObjects)) {
-			return 0;
-		}
-
-		let totalBalance = 0;
-
-		for (const coinItem of coinObjects) {
-			const balance = ObjectHelper.propertyGet<string>(coinItem, "balance");
-			if (balance) {
-				const parsedBalance = Coerce.number(balance);
-				if (parsedBalance && !Number.isNaN(parsedBalance)) {
-					totalBalance += parsedBalance;
-				}
-			}
-		}
-
-		// Log warning if pagination is detected
-		if (hasNextPage) {
-			CLIDisplay.value(
-				"⚠️  WARNING",
-				`Large wallet detected: ${coinObjects.length} coin objects with more pages available. Balance may be incomplete.`,
-				2
-			);
-		}
-
-		return totalBalance;
-	} catch (err) {
+	try {
+		parsedData = JSON.parse(jsonOutput);
+	} catch (error) {
 		throw new GeneralError(
 			"commands",
-			"commands.deploy.balanceCheckFailed",
-			{ address, rpcUrl },
-			err
+			"commands.deploy.invalidJsonResponse",
+			{
+				output: jsonOutput.slice(0, 200) // Truncate for logging
+			},
+			error
 		);
 	}
+
+	// Validate root structure: [data, hasNextPage]
+	if (!Is.arrayValue(parsedData) || parsedData.length < 2) {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "Root structure should be [data, hasNextPage]",
+			actualLength: Is.arrayValue(parsedData) ? parsedData.length : "not array"
+		});
+	}
+
+	const [dataWrapper, hasNextPage] = parsedData;
+
+	// Validate hasNextPage
+	if (typeof hasNextPage !== "boolean") {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "hasNextPage should be boolean",
+			actualType: typeof hasNextPage
+		});
+	}
+
+	// Validate data wrapper: [[...]]
+	if (!Is.arrayValue(dataWrapper) || dataWrapper.length === 0) {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "Data wrapper should be non-empty array",
+			actualLength: Is.arrayValue(dataWrapper) ? dataWrapper.length : "not array"
+		});
+	}
+
+	// Validate inner structure: [metadata, coinObjects]
+	const innerData = dataWrapper[0];
+	if (!Is.arrayValue(innerData) || innerData.length < 2) {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "Inner data should have [metadata, coinObjects]",
+			actualLength: Is.arrayValue(innerData) ? innerData.length : "not array"
+		});
+	}
+
+	const [metadata, coinObjects] = innerData;
+
+	// Validate metadata
+	if (!Is.object(metadata)) {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "Metadata should be object",
+			actualType: typeof metadata
+		});
+	}
+
+	// Validate coin objects
+	if (!Is.arrayValue(coinObjects)) {
+		throw new GeneralError("commands", "commands.deploy.unexpectedResponseFormat", {
+			message: "Coin objects should be array",
+			actualType: typeof coinObjects
+		});
+	}
+
+	// Validate coin object structure
+	const validatedCoinObjects = coinObjects.map((coin, index) => {
+		if (!Is.object(coin)) {
+			throw new GeneralError("commands", "commands.deploy.invalidCoinObject", {
+				index,
+				actualType: typeof coin
+			});
+		}
+
+		const balance = ObjectHelper.propertyGet(coin, "balance");
+		if (!Is.stringValue(balance)) {
+			throw new GeneralError("commands", "commands.deploy.invalidCoinBalance", {
+				index,
+				balance
+			});
+		}
+
+		return coin as unknown as ICoinObject;
+	});
+
+	return {
+		coinObjects: validatedCoinObjects,
+		hasNextPage,
+		metadata: metadata as IBalanceResponse["metadata"]
+	};
+}
+
+/**
+ * Calculate total balance from coin objects.
+ * @param coinObjects Array of coin objects
+ * @returns Total balance in nanoIOTA
+ */
+function calculateTotalBalance(coinObjects: ICoinObject[]): number {
+	let total = 0;
+	for (const coin of coinObjects) {
+		const balance = ObjectHelper.propertyGet(coin, "balance");
+		const coinBalance = Coerce.number(balance);
+		if (coinBalance !== undefined) {
+			total += coinBalance;
+		}
+	}
+	return total;
 }
 
 /**
