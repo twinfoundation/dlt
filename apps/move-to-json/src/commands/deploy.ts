@@ -5,13 +5,20 @@ import { promises as fsPromises } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { CLIDisplay } from "@twin.org/cli-core";
-import { GeneralError, Is, Converter, I18n } from "@twin.org/core";
+import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
+import {
+	GeneralError,
+	Is,
+	Converter,
+	I18n,
+	Coerce,
+	ObjectHelper,
+	StringHelper
+} from "@twin.org/core";
 import { Bip39 } from "@twin.org/crypto";
 import { IotaFaucetConnector } from "@twin.org/wallet-connector-iota";
 import type { Command } from "commander";
 import { config as dotenvConfig } from "dotenv";
-import type { ICoinObject } from "../models/ICoinObject";
 import type { IContractData } from "../models/IContractData";
 import type { INetworkConfig } from "../models/INetworkConfig";
 import type { NetworkTypes } from "../models/networkTypes";
@@ -129,14 +136,22 @@ export async function actionCommandDeploy(opts: {
 
 	try {
 		const contractsPath = opts.contracts ?? "compiled-modules.json";
-		const network = opts.network as NetworkTypes;
 		const dryRun = opts.dryRun ?? false;
 		const force = opts.force ?? false;
 
-		if (!network) {
-			CLIDisplay.error(I18n.formatMessage("commands.deploy.messages.networkRequired"));
-			return;
+		if (!Is.stringValue(opts.network)) {
+			throw new GeneralError("commands", "commands.deploy.networkRequired");
 		}
+
+		const validNetworks: NetworkTypes[] = ["testnet", "devnet", "mainnet"];
+		if (!validNetworks.includes(opts.network as NetworkTypes)) {
+			throw new GeneralError("commands", "commands.deploy.invalidNetwork", {
+				network: opts.network,
+				validNetworks: validNetworks.join(", ")
+			});
+		}
+
+		const network = opts.network as NetworkTypes;
 
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();
@@ -150,7 +165,7 @@ export async function actionCommandDeploy(opts: {
 		const contractsData = await loadCompiledContracts(contractsPath);
 
 		if (network === "mainnet") {
-			validateDeploymentEnvironment(network);
+			await validateDeploymentEnvironment(network);
 		}
 
 		const networkContracts = contractsData[network];
@@ -189,8 +204,16 @@ export async function actionCommandDeploy(opts: {
  */
 async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetworkConfig> {
 	try {
-		// Determine the env file path based on network
-		const envFilePath = path.join(process.cwd(), "configs", `${network}.env`);
+		const envFilePath = StringHelper.trimTrailingSlashes(
+			path.join(process.cwd(), "configs", `${network}.env`)
+		);
+
+		if (!(await CLIUtils.fileExists(envFilePath))) {
+			throw new GeneralError("commands", "commands.deploy.envFileNotFound", {
+				network,
+				envFilePath
+			});
+		}
 
 		// Load environment variables from the network-specific file
 		const result = dotenvConfig({ path: envFilePath });
@@ -203,24 +226,19 @@ async function loadNetworkConfigFromEnv(network: NetworkTypes): Promise<INetwork
 			});
 		}
 
-		// Build config object from environment variables
 		const config: INetworkConfig = {
 			network,
 			platform: "iota",
 			rpc: {
-				url: process.env.RPC_URL ?? `https://api.${network}.iota.cafe`,
-				timeout: process.env.RPC_TIMEOUT ? Number.parseInt(process.env.RPC_TIMEOUT, 10) : 60000
+				url: Coerce.string(process.env.RPC_URL) || `https://api.${network}.iota.cafe`,
+				timeout: Coerce.number(process.env.RPC_TIMEOUT) || 60000
 			},
 			deployment: {
-				gasBudget: process.env.GAS_BUDGET ? Number.parseInt(process.env.GAS_BUDGET, 10) : 50000000,
-				confirmationTimeout: process.env.CONFIRMATION_TIMEOUT
-					? Number.parseInt(process.env.CONFIRMATION_TIMEOUT, 10)
-					: 60,
+				gasBudget: Coerce.number(process.env.GAS_BUDGET) || 50000000,
+				confirmationTimeout: Coerce.number(process.env.CONFIRMATION_TIMEOUT) || 60,
 				wallet: {
-					mnemonicId: process.env.MNEMONIC_ID ?? "deployer-mnemonic",
-					addressIndex: process.env.ADDRESS_INDEX
-						? Number.parseInt(process.env.ADDRESS_INDEX, 10)
-						: 0
+					mnemonicId: Coerce.string(process.env.MNEMONIC_ID) || "deployer-mnemonic",
+					addressIndex: Coerce.number(process.env.ADDRESS_INDEX) || 0
 				}
 			}
 		};
@@ -262,8 +280,13 @@ function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkT
  */
 async function loadCompiledContracts(contractsPath: string): Promise<{ [key: string]: unknown }> {
 	try {
-		const content = await fsPromises.readFile(contractsPath, "utf8");
-		const contracts = JSON.parse(content);
+		if (!(await CLIUtils.fileExists(contractsPath))) {
+			throw new GeneralError("commands", "commands.deploy.contractsFileNotFound", {
+				contractsPath
+			});
+		}
+
+		const contracts = await CLIUtils.readJsonFile<{ [key: string]: unknown }>(contractsPath);
 
 		if (!contracts || typeof contracts !== "object") {
 			throw new GeneralError("commands", "commands.deploy.invalidContractsFile");
@@ -334,7 +357,7 @@ async function deployContract(
 		// For mainnet, show mnemonic validation info
 		if (network === "mainnet") {
 			try {
-				validateDeploymentEnvironment(network);
+				await validateDeploymentEnvironment(network);
 				const walletAddress = await getDeploymentWalletAddress(
 					network,
 					config.deployment.wallet.addressIndex
@@ -387,7 +410,7 @@ async function deployContract(
 
 		if (network === "mainnet") {
 			// For mainnet, validate environment and check balance
-			validateDeploymentEnvironment(network);
+			await validateDeploymentEnvironment(network);
 
 			const balanceNanos = await getWalletBalance(walletAddress, config.rpc.url);
 			const balanceIota = nanosToIota(balanceNanos);
@@ -541,13 +564,13 @@ async function getDeploymentWalletAddress(
 	addressIndex: number
 ): Promise<string> {
 	// Try to use seed first if available
-	const seed = getDeploymentSeed(network);
+	const seed = await getDeploymentSeed(network);
 	if (seed) {
 		return getWalletAddressFromSeed(seed, addressIndex);
 	}
 
 	// Fall back to mnemonic
-	const mnemonic = getDeploymentMnemonic(network);
+	const mnemonic = await getDeploymentMnemonic(network);
 	return getWalletAddressFromMnemonic(mnemonic, addressIndex);
 }
 
@@ -597,11 +620,12 @@ async function getWalletBalance(address: string, rpcUrl: string): Promise<number
 		}
 
 		let totalBalance = 0;
+
 		for (const coinItem of coinObjects) {
-			const coin = coinItem as ICoinObject;
-			if (Is.stringValue(coin?.balance)) {
-				const parsedBalance = Number.parseInt(coin.balance, 10);
-				if (Is.number(parsedBalance) && !Number.isNaN(parsedBalance)) {
+			const balance = ObjectHelper.propertyGet<string>(coinItem, "balance");
+			if (balance) {
+				const parsedBalance = Coerce.number(balance);
+				if (parsedBalance && !Number.isNaN(parsedBalance)) {
 					totalBalance += parsedBalance;
 				}
 			}
@@ -793,8 +817,7 @@ async function updateContractsFile(
 	contractsData: { [key: string]: unknown }
 ): Promise<void> {
 	try {
-		const content = JSON.stringify(contractsData, null, "\t");
-		await fsPromises.writeFile(contractsPath, content, "utf8");
+		await CLIUtils.writeJsonFile(contractsPath, contractsData, false);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.updatedContractsFile"),
 			contractsPath,

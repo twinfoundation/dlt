@@ -3,7 +3,7 @@
 import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
-import { Converter, GeneralError, StringHelper, I18n } from "@twin.org/core";
+import { Converter, GeneralError, StringHelper, I18n, ObjectHelper, Is } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
 import type { Command } from "commander";
 import FastGlob from "fast-glob";
@@ -45,7 +45,7 @@ export async function actionCommandBuild(
 	opts: { network?: string; output?: string }
 ): Promise<void> {
 	try {
-		if (!opts.network) {
+		if (!Is.stringValue(opts.network)) {
 			throw new GeneralError("commands", "commands.build.networkRequired");
 		}
 
@@ -119,39 +119,26 @@ export async function actionCommandBuild(
 			CLIDisplay.value("Prepared project", projectRoot, 1);
 		}
 
-		const finalJson = {
+		const finalJson: { [key: string]: { [key: string]: unknown } } = {
 			testnet: {},
 			devnet: {},
 			mainnet: {}
 		};
 
-		if (await CLIUtils.fileExists(normalizedOutput)) {
-			try {
-				const existingData = await fsPromises.readFile(normalizedOutput, "utf8");
-				const existingJson = JSON.parse(existingData);
+		const existingJson = await CLIUtils.readJsonFile<{
+			testnet?: { [key: string]: unknown };
+			devnet?: { [key: string]: unknown };
+			mainnet?: { [key: string]: unknown };
+		}>(normalizedOutput);
+		if (existingJson) {
+			finalJson.testnet = ObjectHelper.merge(finalJson.testnet, existingJson.testnet || {});
+			finalJson.devnet = ObjectHelper.merge(finalJson.devnet, existingJson.devnet || {});
+			finalJson.mainnet = ObjectHelper.merge(finalJson.mainnet, existingJson.mainnet || {});
 
-				if (existingJson.testnet) {
-					Object.assign(finalJson.testnet, existingJson.testnet);
-				}
-				if (existingJson.devnet) {
-					Object.assign(finalJson.devnet, existingJson.devnet);
-				}
-				if (existingJson.mainnet) {
-					Object.assign(finalJson.mainnet, existingJson.mainnet);
-				}
-
-				CLIDisplay.value(
-					I18n.formatMessage("commands.build.labels.mergingWithExistingJson"),
-					normalizedOutput
-				);
-			} catch (err) {
-				throw new GeneralError(
-					"commands",
-					"commands.build.failedReadingOutputJson",
-					{ file: normalizedOutput },
-					err
-				);
-			}
+			CLIDisplay.value(
+				I18n.formatMessage("commands.build.labels.mergingWithExistingJson"),
+				normalizedOutput
+			);
 		} else {
 			CLIDisplay.value(
 				I18n.formatMessage("commands.build.labels.noExistingJsonFound"),
@@ -191,18 +178,6 @@ export async function actionCommandBuild(
 				);
 			}
 			CLIDisplay.break();
-		}
-
-		// Ensure the output directory exists
-		try {
-			await fsPromises.mkdir(path.dirname(normalizedOutput), { recursive: true });
-		} catch (err) {
-			throw new GeneralError(
-				"commands",
-				"commands.build.mkdirFailed",
-				{ dir: path.dirname(normalizedOutput) },
-				err
-			);
 		}
 
 		CLIDisplay.task(I18n.formatMessage("commands.build.progress.writingJsonFile"));
@@ -344,8 +319,10 @@ function normalizePathsAndWorkingDir(
 } {
 	const executionDir = process.cwd();
 
-	// Normalize paths for cross-platform compatibility
-	const normalizedGlob = path.resolve(inputGlob).replace(/\\/g, "/");
+	// Improved path normalization with StringHelper
+	const normalizedGlob = StringHelper.trimTrailingSlashes(
+		path.resolve(inputGlob).replace(/\\/g, "/")
+	);
 	const normalizedOutput = path.resolve(outputJson);
 
 	return {

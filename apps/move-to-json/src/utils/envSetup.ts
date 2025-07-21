@@ -1,7 +1,8 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import path from "node:path";
-import { GeneralError, Is } from "@twin.org/core";
+import { CLIUtils } from "@twin.org/cli-core";
+import { GeneralError, Is, StringHelper, HexHelper } from "@twin.org/core";
 import dotenv from "dotenv";
 import type { NetworkTypes } from "../models/networkTypes.js";
 
@@ -31,8 +32,18 @@ function getSeedEnvVar(network: NetworkTypes): string {
  * @returns The loaded environment variables.
  * @throws GeneralError if the environment file cannot be loaded.
  */
-function loadNetworkEnvironment(network: NetworkTypes): { [key: string]: string } {
-	const envFilePath = path.join(process.cwd(), "configs", `${network}.env`);
+async function loadNetworkEnvironment(network: NetworkTypes): Promise<{ [key: string]: string }> {
+	const envFilePath = StringHelper.trimTrailingSlashes(
+		path.join(process.cwd(), "configs", `${network}.env`)
+	);
+
+	if (!(await CLIUtils.fileExists(envFilePath))) {
+		throw new GeneralError("envSetup", "envFileNotFound", {
+			network,
+			envFilePath
+		});
+	}
+
 	const result = dotenv.config({ path: envFilePath });
 
 	if (result.error) {
@@ -51,8 +62,8 @@ function loadNetworkEnvironment(network: NetworkTypes): { [key: string]: string 
  * @param network The target network.
  * @throws GeneralError if required environment variables are missing.
  */
-export function validateDeploymentEnvironment(network: NetworkTypes): void {
-	const envVars = loadNetworkEnvironment(network);
+export async function validateDeploymentEnvironment(network: NetworkTypes): Promise<void> {
+	const envVars = await loadNetworkEnvironment(network);
 	const mnemonicVar = getMnemonicEnvVar(network);
 	const mnemonic = envVars[mnemonicVar];
 
@@ -80,8 +91,8 @@ export function validateDeploymentEnvironment(network: NetworkTypes): void {
  * @returns The mnemonic string.
  * @throws GeneralError if mnemonic is not found or invalid.
  */
-export function getDeploymentMnemonic(network: NetworkTypes): string {
-	const envVars = loadNetworkEnvironment(network);
+export async function getDeploymentMnemonic(network: NetworkTypes): Promise<string> {
+	const envVars = await loadNetworkEnvironment(network);
 	const mnemonicVar = getMnemonicEnvVar(network);
 	const mnemonic = envVars[mnemonicVar];
 
@@ -111,8 +122,8 @@ export function getDeploymentMnemonic(network: NetworkTypes): string {
  * @returns The seed string or undefined if not set.
  * @throws GeneralError if seed is not found or invalid.
  */
-export function getDeploymentSeed(network: NetworkTypes): string | undefined {
-	const envVars = loadNetworkEnvironment(network);
+export async function getDeploymentSeed(network: NetworkTypes): Promise<string | undefined> {
+	const envVars = await loadNetworkEnvironment(network);
 	const seedVar = getSeedEnvVar(network);
 	const seed = envVars[seedVar];
 
@@ -120,8 +131,16 @@ export function getDeploymentSeed(network: NetworkTypes): string | undefined {
 		return undefined;
 	}
 
-	// Validate seed format (should be a hex string starting with 0x)
-	if (!seed.startsWith("0x") || seed.length < 64) {
+	if (!HexHelper.hasPrefix(seed) || !HexHelper.isHex(seed.slice(2))) {
+		throw new GeneralError("envSetup", "seedInvalidFormat", {
+			network,
+			seedVar,
+			seed: `${seed.slice(0, 20)}...`
+		});
+	}
+
+	if (seed.length < 66) {
+		// 0x + 64 hex characters
 		throw new GeneralError("envSetup", "seedInvalidFormat", {
 			network,
 			seedVar,

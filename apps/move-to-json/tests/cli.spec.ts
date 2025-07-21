@@ -159,7 +159,7 @@ describe("envSetup Validation", () => {
 		process.chdir(TEST_DATA_LOCATION);
 
 		try {
-			validateDeploymentEnvironment("testnet");
+			await validateDeploymentEnvironment("testnet");
 			expect(true).toBe(false); // Should not reach here
 		} catch (error) {
 			expect(error).toBeInstanceOf(GeneralError);
@@ -185,7 +185,7 @@ describe("envSetup Validation", () => {
 		process.chdir(TEST_DATA_LOCATION);
 
 		try {
-			validateDeploymentEnvironment("testnet");
+			await validateDeploymentEnvironment("testnet");
 			expect(true).toBe(false); // Should not reach here
 		} catch (error) {
 			expect(error).toBeInstanceOf(GeneralError);
@@ -211,7 +211,7 @@ describe("envSetup Validation", () => {
 		process.chdir(TEST_DATA_LOCATION);
 
 		try {
-			const result = getDeploymentMnemonic("testnet");
+			const result = await getDeploymentMnemonic("testnet");
 			expect(result).toBe(validMnemonic);
 		} finally {
 			process.chdir(originalCwd);

@@ -1,6 +1,6 @@
 # Function: getDeploymentMnemonic()
 
-> **getDeploymentMnemonic**(`network`): `string`
+> **getDeploymentMnemonic**(`network`): `Promise`\<`string`\>
 
 Get the deployment mnemonic for a network.
 
@@ -14,7 +14,7 @@ The target network.
 
 ## Returns
 
-`string`
+`Promise`\<`string`\>
 
 The mnemonic string.
 

@@ -1,6 +1,6 @@
 # Function: getDeploymentSeed()
 
-> **getDeploymentSeed**(`network`): `undefined` \| `string`
+> **getDeploymentSeed**(`network`): `Promise`\<`undefined` \| `string`\>
 
 Get the deployment seed for a network (if available).
 
@@ -14,7 +14,7 @@ The target network.
 
 ## Returns
 
-`undefined` \| `string`
+`Promise`\<`undefined` \| `string`\>
 
 The seed string or undefined if not set.
 

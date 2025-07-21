@@ -1,6 +1,6 @@
 # Function: validateDeploymentEnvironment()
 
-> **validateDeploymentEnvironment**(`network`): `void`
+> **validateDeploymentEnvironment**(`network`): `Promise`\<`void`\>
 
 Validate that required environment variables are set for deployment.
 
@@ -14,7 +14,7 @@ The target network.
 
 ## Returns
 
-`void`
+`Promise`\<`void`\>
 
 ## Throws
 
