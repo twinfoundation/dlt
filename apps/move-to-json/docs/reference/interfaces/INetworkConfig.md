@@ -54,10 +54,6 @@ The deployment configuration
 
 > **wallet**: `object`
 
-##### wallet.mnemonicId
-
-> **mnemonicId**: `string`
-
 ##### wallet.addressIndex
 
 > **addressIndex**: `number`

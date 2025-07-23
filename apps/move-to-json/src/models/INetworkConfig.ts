@@ -29,7 +29,6 @@ export interface INetworkConfig {
 		gasBudget: number;
 		confirmationTimeout?: number;
 		wallet: {
-			mnemonicId: string;
 			addressIndex: number;
 		};
 		gasStation?: {

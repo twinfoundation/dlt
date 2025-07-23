@@ -33,10 +33,10 @@ npm install -g @twin.org/move-to-json
 
 ```bash
 # Build contracts for mainnet using npx
-npx move-to-json build "src/**/*.move" --network mainnet --output compiled-modules.json
+npx move-to-json build "src/**/*.move" --network mainnet --output smart-contract-deployments.json
 
 # Deploy to mainnet using npx
-npx move-to-json deploy --network mainnet
+npx move-to-json deploy --contracts _PATH-TO-CONTRACTS_ --network mainnet --load-env _PATH-TO-ENVS_
 ```
 
 ## Environment Setup for Production Deployments
@@ -120,7 +120,7 @@ move-to-json build "src/**/*.move" --network <network> [--output <file>]
 **Options:**
 
 - `--network <network>` - Target network (testnet/devnet/mainnet) **[Required]**
-- `--output <file>` - Output JSON file (default: compiled-modules.json)
+- `--output <file>` - Output JSON file (default: smart-contract-deployments.json)
 
 **What it does:**
 
@@ -139,10 +139,10 @@ move-to-json build "src/**/*.move" --network <network> [--output <file>]
 
 ```bash
 # Build for testnet
-npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/compiled-modules/compiled-modules.json
+npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
 
 # Build for mainnet (same bytecode as testnet)
-npx move-to-json build "src/contracts/**/*.move" --network mainnet --output compiled-modules.json
+npx move-to-json build "src/contracts/**/*.move" --network mainnet --output smart-contract-deployments.json
 ```
 
 ### deploy
@@ -160,7 +160,8 @@ move-to-json deploy --network <network> [options]
 **Options:**
 
 - `--network <network>` - Network identifier (testnet/devnet/mainnet) **[Required]**
-- `--contracts <file>` - Compiled modules JSON file (default: compiled-modules.json)
+- `--contracts <file>` - Compiled modules JSON file (default: smart-contract-deployments.json)
+- `--load-env <file>` - Configuration of the environmental variables
 - `--dry-run` - Simulate deployment without executing
 - `--force` - Force redeployment of existing packages
 
@@ -199,13 +200,13 @@ iota client new-env --alias devnet --rpc https://api.devnet.iota.cafe
 
 ```bash
 # Deploy to testnet
-npx move-to-json deploy --network testnet
+npx move-to-json deploy --network testnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env
 
 # Deploy to mainnet
-npx move-to-json deploy --network mainnet
+npx move-to-json deploy --network mainnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env
 
 # Dry run (simulation)
-npx move-to-json deploy --network testnet --dry-run
+npx move-to-json deploy --network testnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env --dry-run
 ```
 
 **Output:**
@@ -300,7 +301,7 @@ The UpgradeCap is a special object that:
 
 ### UpgradeCap Storage
 
-The tool stores UpgradeCap IDs in the compiled-modules.json file:
+The tool stores UpgradeCap IDs in the smart-contract-deployments.json file:
 
 ```json
 {
@@ -329,7 +330,7 @@ iota client call --package 0x2 --module package --function upgrade \
 - **🔐 Keep UpgradeCap secure**: Treat it like a private key
 - **📱 Backup regularly**: Include UpgradeCap IDs in your backup strategy
 - **🚫 Never share publicly**: UpgradeCap grants full upgrade control
-- **✅ Version control**: Store compiled-modules.json in secure version control
+- **✅ Version control**: Store smart-contract-deployments.json in secure version control
 
 ## Network Configuration Files
 
@@ -340,7 +341,6 @@ The tool uses environment configuration files for each network in the `configs/`
 ```env
 # IOTA Mainnet Network Configuration
 NETWORK=mainnet
-PLATFORM=iota
 
 # RPC Configuration
 RPC_URL=https://api.mainnet.iota.cafe
@@ -353,10 +353,6 @@ CONFIRMATION_TIMEOUT=120
 # Wallet Configuration
 MAINNET_DEPLOYER_MNEMONIC="word1 word2 word3 ... word24"
 ADDRESS_INDEX=0
-
-# Optional: Gas Station Configuration
-# GAS_STATION_URL=https://gas-station.mainnet.iota.cafe
-# GAS_STATION_AUTH=your-mainnet-auth-token
 ```
 
 ### configs/testnet.env
@@ -364,7 +360,6 @@ ADDRESS_INDEX=0
 ```env
 # IOTA Testnet Network Configuration
 NETWORK=testnet
-PLATFORM=iota
 
 # RPC Configuration
 RPC_URL=https://api.testnet.iota.cafe
@@ -377,10 +372,6 @@ CONFIRMATION_TIMEOUT=60
 # Wallet Configuration
 TESTNET_DEPLOYER_MNEMONIC="word1 word2 word3 ... word24"
 ADDRESS_INDEX=0
-
-# Optional: Gas Station Configuration
-# GAS_STATION_URL=https://gas-station.testnet.iota.cafe
-# GAS_STATION_AUTH=your-testnet-auth-token
 ```
 
 ## Complete Workflow
@@ -393,8 +384,8 @@ cp configs/testnet.env.example configs/testnet.env
 # Generate credentials and update testnet.env with your mnemonic
 
 # Build and test on testnet
-npx move-to-json build "src/**/*.move" --network testnet
-npx move-to-json deploy --network testnet
+npx move-to-json build "src/**/*.move" --network testnet --output <OUTPUT_PATH>
+npx move-to-json deploy --network testnet --contracts <CONTRACTS_PATH>  --load-env <ENV_FILE_PATH>
 ```
 
 ### 2. Production Deployment
@@ -405,8 +396,8 @@ cp configs/mainnet.env.example configs/mainnet.env
 # Generate secure credentials and update mainnet.env with your mnemonic
 
 # Build and deploy to mainnet
-npx move-to-json build "src/**/*.move" --network mainnet
-npx move-to-json deploy --network mainnet
+npx move-to-json build "src/**/*.move" --network mainnet --output <OUTPUT_PATH>
+npx move-to-json deploy --network mainnet --contracts <CONTRACTS_PATH>  --load-env <ENV_FILE_PATH>
 ```
 
 ## Output Format

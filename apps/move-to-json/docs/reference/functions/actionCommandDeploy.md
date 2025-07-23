@@ -16,9 +16,9 @@ Command options.
 
 Path to compiled modules JSON.
 
-#### network?
+#### network
 
-`string`
+[`NetworkTypes`](../type-aliases/NetworkTypes.md)
 
 Network identifier.
 

@@ -6,19 +6,18 @@
 
 ## Interfaces
 
-- [ICoinObject](interfaces/ICoinObject.md)
 - [IContractData](interfaces/IContractData.md)
+- [IContractFile](interfaces/IContractFile.md)
 - [INetworkConfig](interfaces/INetworkConfig.md)
+- [ISmartContractDeployments](interfaces/ISmartContractDeployments.md)
 
 ## Type Aliases
 
 - [NetworkTypes](type-aliases/NetworkTypes.md)
-- [PlatformTypes](type-aliases/PlatformTypes.md)
 
 ## Variables
 
 - [NetworkTypes](variables/NetworkTypes.md)
-- [PlatformTypes](variables/PlatformTypes.md)
 
 ## Functions
 
@@ -30,3 +29,4 @@
 - [getDeploymentMnemonic](functions/getDeploymentMnemonic.md)
 - [getDeploymentSeed](functions/getDeploymentSeed.md)
 - [verifyIotaSDK](functions/verifyIotaSDK.md)
+- [searchDirectoryForMoveToml](functions/searchDirectoryForMoveToml.md)

@@ -109,17 +109,11 @@ describe("move-to-json CLI", () => {
 
 		// Check new network-aware structure exists
 		expect(json.testnet).toBeDefined();
-		expect(json.devnet).toBeDefined();
-		expect(json.mainnet).toBeDefined();
 
 		// Check contract data in target network (testnet) - flat structure
 		expect(json.testnet.packageId).toMatch(/^0x/);
 		expect(json.testnet.package).toBeDefined();
 		expect(json.testnet.deployedPackageId).toBeNull();
-
-		// Other networks should be empty objects (not populated)
-		expect(Object.keys(json.devnet).length).toBe(0);
-		expect(Object.keys(json.mainnet).length).toBe(0);
 	});
 
 	test("Deploy command requires network option", async () => {
@@ -136,7 +130,6 @@ describe("move-to-json CLI", () => {
 
 describe("envSetup Validation", () => {
 	const TEST_CONFIGS_DIR = path.join(TEST_DATA_LOCATION, "configs");
-	const TEST_ENV_FILE = path.join(TEST_CONFIGS_DIR, "testnet.env");
 
 	beforeAll(async () => {
 		await mkdir(TEST_CONFIGS_DIR, { recursive: true });
@@ -152,8 +145,7 @@ describe("envSetup Validation", () => {
 	});
 
 	test("validateDeploymentEnvironment throws localized error when mnemonic is missing", async () => {
-		// Create empty env file
-		await writeFile(TEST_ENV_FILE, "", "utf8");
+		process.env.DEPLOYER_MNEMONIC = ""; // Clear mnemonic
 
 		const originalCwd = process.cwd();
 		process.chdir(TEST_DATA_LOCATION);
@@ -168,7 +160,7 @@ describe("envSetup Validation", () => {
 			expect(generalError.message).toBe("envSetup.mnemonicMissing");
 			expect(generalError.properties).toMatchObject({
 				network: "testnet",
-				mnemonicVar: "TESTNET_DEPLOYER_MNEMONIC"
+				mnemonicVar: "DEPLOYER_MNEMONIC"
 			});
 		} finally {
 			process.chdir(originalCwd);
@@ -176,10 +168,9 @@ describe("envSetup Validation", () => {
 	});
 
 	test("validateDeploymentEnvironment throws localized error when mnemonic has wrong word count", async () => {
-		// Create env file with invalid mnemonic (only 12 words instead of 24)
-		const invalidMnemonic =
+		// Modify the env with invalid mnemonic (only 12 words instead of 24)
+		process.env.DEPLOYER_MNEMONIC =
 			"word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12";
-		await writeFile(TEST_ENV_FILE, `TESTNET_DEPLOYER_MNEMONIC="${invalidMnemonic}"`, "utf8");
 
 		const originalCwd = process.cwd();
 		process.chdir(TEST_DATA_LOCATION);
@@ -194,7 +185,7 @@ describe("envSetup Validation", () => {
 			expect(generalError.message).toBe("envSetup.mnemonicInvalidFormat");
 			expect(generalError.properties).toMatchObject({
 				network: "testnet",
-				mnemonicVar: "TESTNET_DEPLOYER_MNEMONIC",
+				mnemonicVar: "DEPLOYER_MNEMONIC",
 				wordCount: 12
 			});
 		} finally {
@@ -205,7 +196,7 @@ describe("envSetup Validation", () => {
 	test("getDeploymentMnemonic returns mnemonic when valid", async () => {
 		// Create env file with valid 24-word mnemonic
 		const validMnemonic = Array.from({ length: 24 }, (_, i) => `word${i + 1}`).join(" ");
-		await writeFile(TEST_ENV_FILE, `TESTNET_DEPLOYER_MNEMONIC="${validMnemonic}"`, "utf8");
+		process.env.DEPLOYER_MNEMONIC = validMnemonic;
 
 		const originalCwd = process.cwd();
 		process.chdir(TEST_DATA_LOCATION);
@@ -213,6 +204,72 @@ describe("envSetup Validation", () => {
 		try {
 			const result = await getDeploymentMnemonic("testnet");
 			expect(result).toBe(validMnemonic);
+		} finally {
+			process.chdir(originalCwd);
+		}
+	});
+
+	test("Deploy command dry run with real compiled modules", async () => {
+		// First build the contracts to get real compiled modules
+		const cli = new CLI();
+
+		// Build first
+		const buildExitCode = await cli.run(
+			[
+				"node",
+				"move-to-json",
+				"build",
+				path.join(TEST_INPUT_GLOB, "iota", "sources", "*.move"),
+				"--network",
+				"testnet",
+				"--output",
+				TEST_OUTPUT_JSON
+			],
+			"./dist/locales",
+			{ overrideOutputWidth: 1000 }
+		);
+		expect(buildExitCode).toBe(0);
+
+		// Create config directory and env file for testnet
+		const configDir = path.join(TEST_DATA_LOCATION, "configs");
+		await mkdir(configDir, { recursive: true });
+
+		const validMnemonic = Array.from({ length: 24 }, (_, i) => `word${i + 1}`).join(" ");
+		const envContent = `RPC_URL=https://api.testnet.iota.cafe
+							GAS_BUDGET=50000000
+							CONFIRMATION_TIMEOUT=60
+							MNEMONIC_ID=test-mnemonic
+							ADDRESS_INDEX=0
+							TESTNET_DEPLOYER_MNEMONIC="${validMnemonic}"`;
+
+		const envFile = path.join(configDir, "testnet.env");
+		await writeFile(envFile, envContent);
+
+		const originalCwd = process.cwd();
+		process.chdir(TEST_DATA_LOCATION);
+
+		try {
+			// Now test deploy with dry run
+			const deployExitCode = await cli.run(
+				[
+					"node",
+					"move-to-json",
+					"deploy",
+					"--network",
+					"testnet",
+					"--contracts",
+					TEST_OUTPUT_JSON,
+					"--load-env",
+					envFile,
+					"--dry-run"
+				],
+				"./dist/locales",
+				{ overrideOutputWidth: 1000 }
+			);
+
+			expect(deployExitCode).toBe(0);
+			const output = writeBuffer.join("\n");
+			expect(output).toContain("testnet");
 		} finally {
 			process.chdir(originalCwd);
 		}

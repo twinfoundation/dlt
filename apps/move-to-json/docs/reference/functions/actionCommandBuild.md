@@ -16,9 +16,9 @@ A glob pattern that matches one or more Move files
 
 Additional options.
 
-#### network?
+#### network
 
-`string`
+[`NetworkTypes`](../type-aliases/NetworkTypes.md)
 
 Target network (testnet/devnet/mainnet).
 

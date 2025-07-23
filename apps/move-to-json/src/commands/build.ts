@@ -3,12 +3,16 @@
 import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
-import { Converter, GeneralError, StringHelper, I18n, ObjectHelper, Is } from "@twin.org/core";
+import { Converter, GeneralError, StringHelper, I18n, Guards } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
+import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
 import FastGlob from "fast-glob";
-import type { NetworkTypes } from "../models/networkTypes";
+import type { IContractData } from "../models/IContractData";
+import type { ISmartContractDeployments } from "../models/ISmartContractDeployments";
+import { NetworkTypes } from "../models/networkTypes";
 import { verifyIotaSDK } from "../utils/iotaUtils.js";
+import { searchDirectoryForMoveToml } from "../utils/moveToJsonUtils.js";
 
 /**
  * Build the build command to be consumed by the CLI.
@@ -26,7 +30,7 @@ export function buildCommandBuild(program: Command): void {
 		.option(
 			I18n.formatMessage("commands.build.options.output.param"),
 			I18n.formatMessage("commands.build.options.output.description"),
-			"compiled-modules.json"
+			"smart-contract-deployments.json"
 		)
 		.action(async (inputGlob, opts) => {
 			await actionCommandBuild(inputGlob, opts);
@@ -42,29 +46,19 @@ export function buildCommandBuild(program: Command): void {
  */
 export async function actionCommandBuild(
 	inputGlob: string,
-	opts: { network?: string; output?: string }
+	opts: { network: NetworkTypes; output?: string }
 ): Promise<void> {
 	try {
-		if (!Is.stringValue(opts.network)) {
-			throw new GeneralError("commands", "commands.build.networkRequired");
-		}
+		Guards.arrayOneOf("commands", nameof(opts.network), opts.network, Object.values(NetworkTypes));
 
-		const validNetworks: NetworkTypes[] = ["testnet", "devnet", "mainnet"];
-		if (!validNetworks.includes(opts.network as NetworkTypes)) {
-			throw new GeneralError("commands", "commands.build.invalidNetwork", {
-				network: opts.network,
-				validNetworks: validNetworks.join(", ")
-			});
-		}
-
-		const network = opts.network as NetworkTypes;
+		const network = opts.network;
 
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();
 
 		const { normalizedGlob, normalizedOutput, executionDir } = normalizePathsAndWorkingDir(
 			inputGlob,
-			opts.output ?? "compiled-modules.json"
+			opts.output ?? "smart-contract-deployments.json"
 		);
 
 		CLIDisplay.section(
@@ -119,22 +113,15 @@ export async function actionCommandBuild(
 			CLIDisplay.value("Prepared project", projectRoot, 1);
 		}
 
-		const finalJson: { [key: string]: { [key: string]: unknown } } = {
-			testnet: {},
-			devnet: {},
-			mainnet: {}
-		};
+		const existingJson = await CLIUtils.readJsonFile<ISmartContractDeployments>(normalizedOutput);
+		const finalJson: ISmartContractDeployments = existingJson ? { ...existingJson } : {};
 
-		const existingJson = await CLIUtils.readJsonFile<{
-			testnet?: { [key: string]: unknown };
-			devnet?: { [key: string]: unknown };
-			mainnet?: { [key: string]: unknown };
-		}>(normalizedOutput);
+		// Ensure the target network exists
+		if (!finalJson[network]) {
+			finalJson[network] = {} as IContractData;
+		}
+
 		if (existingJson) {
-			finalJson.testnet = ObjectHelper.merge(finalJson.testnet, existingJson.testnet || {});
-			finalJson.devnet = ObjectHelper.merge(finalJson.devnet, existingJson.devnet || {});
-			finalJson.mainnet = ObjectHelper.merge(finalJson.mainnet, existingJson.mainnet || {});
-
 			CLIDisplay.value(
 				I18n.formatMessage("commands.build.labels.mergingWithExistingJson"),
 				normalizedOutput
@@ -156,7 +143,7 @@ export async function actionCommandBuild(
 				if (compiled) {
 					const { contractName, packageId, packageData } = compiled;
 
-					const targetNetworkData = finalJson[network] as { [key: string]: unknown };
+					const targetNetworkData = finalJson[network];
 
 					targetNetworkData.packageId = packageId;
 					targetNetworkData.package = packageData;
@@ -165,6 +152,12 @@ export async function actionCommandBuild(
 						// Keep existing deployedPackageId
 					} else {
 						targetNetworkData.deployedPackageId = null;
+					}
+
+					if (targetNetworkData.upgradeCap) {
+						// Keep existing upgradeCap
+					} else {
+						targetNetworkData.upgradeCap = null;
 					}
 
 					CLIDisplay.value(`Updated ${network} package`, contractName, 2);
@@ -330,27 +323,4 @@ function normalizePathsAndWorkingDir(
 		normalizedOutput,
 		executionDir
 	};
-}
-
-/**
- * Recursively search a directory for Move.toml files.
- * @param dir Directory to search
- * @param moveProjects Array to collect found projects
- */
-async function searchDirectoryForMoveToml(dir: string, moveProjects: string[]): Promise<void> {
-	try {
-		const entries = await fsPromises.readdir(dir, { withFileTypes: true });
-
-		for (const entry of entries) {
-			const fullPath = path.join(dir, entry.name);
-
-			if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
-				await searchDirectoryForMoveToml(fullPath, moveProjects);
-			} else if (entry.isFile() && entry.name === "Move.toml") {
-				moveProjects.push(dir);
-			}
-		}
-	} catch {
-		// Ignore directories that can't be read
-	}
 }

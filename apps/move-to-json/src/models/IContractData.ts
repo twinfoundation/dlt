@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 
 /**
- * Interface for contract data stored in compiled-modules.json
+ * Interface for contract data stored in smart-contract-deployments.json
  */
 export interface IContractData {
 	/**
@@ -12,7 +12,7 @@ export interface IContractData {
 	/**
 	 * Base64-encoded package bytecode
 	 */
-	package: string;
+	package: string | string[];
 	/**
 	 * Package ID from actual deployment
 	 */

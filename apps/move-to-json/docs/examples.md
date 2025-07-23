@@ -16,14 +16,14 @@ The tool now uses separate `build` and `deploy` subcommands:
 
 ## Build Command
 
-### Basic Usage
+### Build Basic Usage
 
 ```bash
 # Build contracts and generate network-aware JSON
-move-to-json build "src/contracts/**/*.move" --output compiled-modules.json
+move-to-json build "src/contracts/**/*.move" --network testnet --output smart-contract-deployments.json
 ```
 
-### What it does:
+### What it does
 
 - Find all .move files matching the glob pattern
 - Compile each file using the IOTA Move compiler
@@ -35,144 +35,65 @@ move-to-json build "src/contracts/**/*.move" --output compiled-modules.json
 
 ```json
 {
-  "buildInfo": {
-    "timestamp": "2024-01-15T10:30:00Z",
-    "version": "1.0.0",
-    "compiler": "move-to-json-v2"
-  },
   "testnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null
+    "deployedPackageId": null,
+    "upgradeCap": null
   },
   "devnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null
+    "deployedPackageId": null,
+    "upgradeCap": null
   },
   "mainnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null
+    "deployedPackageId": null,
+    "upgradeCap": null
   }
 }
 ```
 
 ## Deploy Command
 
-### Basic Usage
+### Deploy Basic Usage
 
 ```bash
 # Deploy to testnet
-move-to-json deploy --config config/iota-testnet.yaml --network testnet
+move-to-json deploy --network testnet --contracts <PATH-TO-CONTRACTS> --load-env <PATH-TO-ENVS>
 
 # Deploy to mainnet with force flag
-move-to-json deploy --config config/iota-mainnet.yaml --network mainnet --force
+move-to-json deploy --network mainnet --force --contracts <PATH-TO-CONTRACTS> --load-env <PATH-TO-ENVS>
 
 # Dry run (simulate without deploying)
-move-to-json deploy --config config/iota-testnet.yaml --network testnet --dry-run
+move-to-json deploy --network testnet --dry-run --contracts <PATH-TO-CONTRACTS> --load-env <PATH-TO-ENVS>
 ```
 
-### Network Configuration Files
-
-Create YAML configuration files for each network:
-
-#### testnet configuration (config/iota-testnet.yaml):
-
-```yaml
-network: testnet
-platform: iota
-rpc:
-  url: https://api.testnet.iota.cafe
-  timeout: 60000
-deployment:
-  gasBudget: 50000000
-  confirmationTimeout: 60
-  wallet:
-    mnemonicId: deployer-mnemonic
-    addressIndex: 0
-  gasStation:
-    url: https://gas-station.testnet.iota.cafe
-    authToken: ${GAS_STATION_AUTH}
-contracts:
-  my_contract:
-    moduleName: my_contract
-    dependencies: ['0x1', '0x2']
-```
-
-#### mainnet configuration (config/iota-mainnet.yaml):
-
-```yaml
-network: mainnet
-platform: iota
-rpc:
-  url: https://api.mainnet.iota.cafe
-deployment:
-  gasBudget: 100000000
-  wallet:
-    mnemonicId: mainnet-deployer-mnemonic
-    addressIndex: 0
-  security:
-    requireConfirmation: true
-    backupPackageIds: true
-```
-
-### What the deploy command does:
+### What the deploy command does
 
 1. **Environment Preparation**: Cleans build artifacts and updates Move.toml for target network
 2. **Configuration Validation**: Loads and validates network configuration
 3. **Contract Deployment**: Uses IOTA CLI to publish contracts with appropriate gas budgets
-4. **JSON Updates**: Updates the compiled-modules.json with actual deployed package IDs
+4. **JSON Updates**: Updates the smart-contract-deployments.json with actual deployed package IDs
 
 ## Complete Workflow Example
 
 ```bash
-# 1. Build contracts for all networks
-move-to-json build "src/contracts/**/*.move" --output src/contracts/compiled-modules.json
+# 1. Build contracts for testnet
+move-to-json build "src/contracts/**/*.move" --network testnet --output src/contracts/smart-contract-deployments.json
 
 # 2. Deploy to testnet first
-move-to-json deploy --config config/iota-testnet.yaml --network testnet
+move-to-json deploy --network testnet --contracts <PATH-TO-CONTRACTS> --load-env <PATH-TO-ENVS>
 
 # 3. Test and validate on testnet
 
-# 4. Deploy to mainnet
-move-to-json deploy --config config/iota-mainnet.yaml --network mainnet
-```
+# 4. Build contracts for mainnet
+move-to-json build "src/contracts/**/*.move" --network mainnet --output src/contracts/smart-contract-deployments.json
 
-## Package.json Integration
-
-Update your package.json scripts:
-
-```json
-{
-  "scripts": {
-    "build:contracts": "move-to-json build \"src/contracts/**/*.move\" --output src/contracts/compiled-modules.json",
-    "deploy:testnet": "move-to-json deploy --config config/iota-testnet.yaml --network testnet",
-    "deploy:devnet": "move-to-json deploy --config config/iota-devnet.yaml --network devnet",
-    "deploy:mainnet": "move-to-json deploy --config config/iota-mainnet.yaml --network mainnet"
-  }
-}
-```
-
-## Updated Import Pattern
-
-In your TypeScript code, access network-specific deployed contracts:
-
-```typescript
-import compiledModulesJson from './contracts/compiled-modules.json';
-
-// Get current network (from environment, config, etc.)
-const network = getCurrentNetwork(); // 'testnet', 'devnet', 'mainnet'
-
-// Access deployed package ID for the current network
-const deployedPackageId = compiledModulesJson[network].deployedPackageId;
-const modules = compiledModulesJson[network].package;
-
-// Use in your application
-const result = await iotaClient.publish({
-  modules: [modules],
-  packageId: deployedPackageId
-});
+# 5. Deploy to mainnet
+move-to-json deploy --network mainnet --contracts <PATH-TO-CONTRACTS> --load-env <PATH-TO-ENVS>
 ```
 
 ## Security Considerations

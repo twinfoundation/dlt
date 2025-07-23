@@ -32,7 +32,7 @@ export class CLI extends CLIBase {
 				appName: "move-to-json",
 				version: "0.0.2-next.1", // x-release-please-version
 				icon: "⚙️ ",
-				supportsEnvFiles: false,
+				supportsEnvFiles: true,
 				overrideOutputWidth: options?.overrideOutputWidth
 			},
 			localesDirectory ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "../locales"),

@@ -1,6 +1,6 @@
 # Interface: IContractData
 
-Interface for contract data stored in compiled-modules.json
+Interface for contract data stored in smart-contract-deployments.json
 
 ## Properties
 
@@ -14,7 +14,7 @@ Package ID generated during build
 
 ### package
 
-> **package**: `string`
+> **package**: `string` \| `string`[]
 
 Base64-encoded package bytecode
 
