@@ -37,21 +37,15 @@ move-to-json build "src/contracts/**/*.move" --network testnet --output smart-co
 {
   "testnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null,
-    "upgradeCap": null
+    "package": "oRzrCwYAAAAKAQAKAgoQ..."
   },
   "devnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null,
-    "upgradeCap": null
+    "package": "oRzrCwYAAAAKAQAKAgoQ..."
   },
   "mainnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null,
-    "upgradeCap": null
+    "package": "oRzrCwYAAAAKAQAKAgoQ..."
   }
 }
 ```

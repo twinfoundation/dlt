@@ -114,12 +114,9 @@ export async function actionCommandBuild(
 		}
 
 		const existingJson = await CLIUtils.readJsonFile<ISmartContractDeployments>(normalizedOutput);
-		const finalJson: ISmartContractDeployments = existingJson ? { ...existingJson } : {};
+		const finalJson: ISmartContractDeployments = existingJson ?? {};
 
-		// Ensure the target network exists
-		if (!finalJson[network]) {
-			finalJson[network] = {} as IContractData;
-		}
+		finalJson[network] ??= {} as IContractData;
 
 		if (existingJson) {
 			CLIDisplay.value(
@@ -147,18 +144,6 @@ export async function actionCommandBuild(
 
 					targetNetworkData.packageId = packageId;
 					targetNetworkData.package = packageData;
-
-					if (targetNetworkData.deployedPackageId) {
-						// Keep existing deployedPackageId
-					} else {
-						targetNetworkData.deployedPackageId = null;
-					}
-
-					if (targetNetworkData.upgradeCap) {
-						// Keep existing upgradeCap
-					} else {
-						targetNetworkData.upgradeCap = null;
-					}
 
 					CLIDisplay.value(`Updated ${network} package`, contractName, 2);
 				}

@@ -233,11 +233,11 @@ function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkT
 		});
 	}
 
-	if (!config.rpc?.url) {
+	if (!Is.stringValue(config.rpc?.url)) {
 		throw new GeneralError("commands", "commands.deploy.rpcUrlRequired");
 	}
 
-	if (!config.deployment?.gasBudget) {
+	if (!Is.number(config.deployment?.gasBudget)) {
 		throw new GeneralError("commands", "commands.deploy.gasBudgetRequired");
 	}
 }
@@ -435,7 +435,7 @@ async function handleActualDeployment(
 		const deploymentResult = await deployWithIotaCli(config.deployment.gasBudget);
 
 		contractData.deployedPackageId = deploymentResult.packageId;
-		contractData.upgradeCap = deploymentResult.upgradeCap ?? null;
+		contractData.upgradeCap = deploymentResult.upgradeCap;
 
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.deployedPackageIdResult"),

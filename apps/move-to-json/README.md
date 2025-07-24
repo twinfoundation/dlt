@@ -409,17 +409,20 @@ The tool generates a network-aware JSON structure:
   "testnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": "0x2ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
+    "deployedPackageId": "0x2ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261",
+    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
   },
   "devnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": null
+    "deployedPackageId": "0x2ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261",
+    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
   },
   "mainnet": {
     "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
     "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": "0x5fg6dh75fi69ec073e7f1g1b8e7f6e5d4c3b2a1f0e9d8c7b6a594837261"
+    "deployedPackageId": "0x5fg6dh75fi69ec073e7f1g1b8e7f6e5d4c3b2a1f0e9d8c7b6a594837261",
+    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
   }
 }
 ```

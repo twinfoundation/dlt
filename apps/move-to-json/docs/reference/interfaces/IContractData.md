@@ -22,7 +22,7 @@ Base64-encoded package bytecode
 
 ### deployedPackageId?
 
-> `optional` **deployedPackageId**: `null` \| `string`
+> `optional` **deployedPackageId**: `string`
 
 Package ID from actual deployment
 
@@ -30,6 +30,6 @@ Package ID from actual deployment
 
 ### upgradeCap?
 
-> `optional` **upgradeCap**: `null` \| `string`
+> `optional` **upgradeCap**: `string`
 
 UpgradeCap object ID for package upgrades

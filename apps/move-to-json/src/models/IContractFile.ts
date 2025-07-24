@@ -1,11 +1,12 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import type { IContractData } from "./IContractData";
+import type { NetworkTypes } from "./networkTypes";
 
 /**
- * Interface for the contracts file structure.
- * The key is the network name, the value is the contract data for that network.
+ * Type for the contracts file structure.
+ * Maps each network type to its optional contract data.
  */
-export interface IContractFile {
-	[network: string]: IContractData;
-}
+export type IContractFile = {
+	[K in NetworkTypes]?: IContractData;
+};

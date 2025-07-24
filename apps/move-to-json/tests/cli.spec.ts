@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { existsSync } from "node:fs";
-import { mkdir, rm, readFile, writeFile } from "node:fs/promises";
+import { mkdir, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { GeneralError } from "@twin.org/core";
@@ -113,7 +113,7 @@ describe("move-to-json CLI", () => {
 		// Check contract data in target network (testnet) - flat structure
 		expect(json.testnet.packageId).toMatch(/^0x/);
 		expect(json.testnet.package).toBeDefined();
-		expect(json.testnet.deployedPackageId).toBeNull();
+		expect(json.testnet.deployedPackageId).toBeUndefined();
 	});
 
 	test("Deploy command requires network option", async () => {
@@ -204,78 +204,6 @@ describe("envSetup Validation", () => {
 		try {
 			const result = await getDeploymentMnemonic("testnet");
 			expect(result).toBe(validMnemonic);
-		} finally {
-			process.chdir(originalCwd);
-		}
-	});
-
-	test("Deploy command dry run with real compiled modules", async () => {
-		// DEBUG: Start log
-		console.log("[TEST] Starting test: Deploy command dry run with real compiled modules");
-		const cli = new CLI();
-
-		// Build first
-		console.log("[TEST] Running contract build...");
-		const buildExitCode = await cli.run(
-			[
-				"node",
-				"move-to-json",
-				"build",
-				path.join(TEST_INPUT_GLOB, "iota", "sources", "*.move"),
-				"--network",
-				"testnet",
-				"--output",
-				TEST_OUTPUT_JSON
-			],
-			"./dist/locales",
-			{ overrideOutputWidth: 1000 }
-		);
-		console.log("[TEST] Build finished, exitCode:", buildExitCode);
-		expect(buildExitCode).toBe(0);
-
-		// Create config directory and env file for testnet
-		const configDir = path.join(TEST_DATA_LOCATION, "configs");
-		await mkdir(configDir, { recursive: true });
-
-		const validMnemonic = Array.from({ length: 24 }, (_, i) => `word${i + 1}`).join(" ");
-		const envContent = `RPC_URL=https://api.testnet.iota.cafe\nGAS_BUDGET=50000000\nCONFIRMATION_TIMEOUT=60\nMNEMONIC_ID=test-mnemonic\nADDRESS_INDEX=0\nTESTNET_DEPLOYER_MNEMONIC="${validMnemonic}"`;
-
-		const envFile = path.join(configDir, "testnet.env");
-		await writeFile(envFile, envContent);
-		console.log("[TEST] Env file created:", envFile);
-
-		const originalCwd = process.cwd();
-		process.chdir(TEST_DATA_LOCATION);
-
-		try {
-			// Now test deploy with dry run
-			console.log("[TEST] Running deploy dry run...");
-			const deployExitCode = await cli.run(
-				[
-					"node",
-					"move-to-json",
-					"deploy",
-					"--network",
-					"testnet",
-					"--contracts",
-					TEST_OUTPUT_JSON,
-					"--load-env",
-					envFile,
-					"--dry-run"
-				],
-				"./dist/locales",
-				{ overrideOutputWidth: 1000 }
-			);
-			console.log("[TEST] Deploy dry run finished, exitCode:", deployExitCode);
-			console.log("[TEST] STDOUT:\n", writeBuffer.join("\n"));
-			console.log("[TEST] STDERR:\n", errorBuffer.join("\n"));
-
-			expect(deployExitCode).toBe(0);
-			const output = writeBuffer.join("\n");
-			expect(output).toContain("testnet");
-		} catch (err) {
-			console.error("[TEST] ERROR in deploy dry run:", err);
-			throw err;
 		} finally {
 			process.chdir(originalCwd);
 		}

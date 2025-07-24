@@ -16,9 +16,9 @@ export interface IContractData {
 	/**
 	 * Package ID from actual deployment
 	 */
-	deployedPackageId?: string | null;
+	deployedPackageId?: string;
 	/**
 	 * UpgradeCap object ID for package upgrades
 	 */
-	upgradeCap?: string | null;
+	upgradeCap?: string;
 }

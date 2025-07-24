@@ -7,12 +7,12 @@
 ## Interfaces
 
 - [IContractData](interfaces/IContractData.md)
-- [IContractFile](interfaces/IContractFile.md)
 - [INetworkConfig](interfaces/INetworkConfig.md)
-- [ISmartContractDeployments](interfaces/ISmartContractDeployments.md)
 
 ## Type Aliases
 
+- [IContractFile](type-aliases/IContractFile.md)
+- [ISmartContractDeployments](type-aliases/ISmartContractDeployments.md)
 - [NetworkTypes](type-aliases/NetworkTypes.md)
 
 ## Variables
