@@ -16,11 +16,11 @@ Command options.
 
 Path to compiled modules JSON.
 
-#### network
+#### network?
 
 [`NetworkTypes`](../type-aliases/NetworkTypes.md)
 
-Network identifier.
+Network identifier - optional if NETWORK env var is set.
 
 #### dryRun?
 

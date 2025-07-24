@@ -1,6 +1,6 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
-import { GeneralError, Is, HexHelper } from "@twin.org/core";
+import { GeneralError, Is } from "@twin.org/core";
 import type { NetworkTypes } from "../models/networkTypes.js";
 
 /**
@@ -54,11 +54,10 @@ export async function getDeploymentSeed(network: NetworkTypes): Promise<string |
 		return undefined;
 	}
 
-	if (!Is.stringHex(seed) || !HexHelper.isHex(seed.slice(2))) {
+	if (!Is.stringHex(seed, true)) {
 		throw new GeneralError("envSetup", "seedInvalidFormat", {
 			network,
-			seedVar: "DEPLOYER_SEED",
-			seed: `${seed.slice(0, 20)}...`
+			seedVar: "DEPLOYER_SEED"
 		});
 	}
 
@@ -66,8 +65,7 @@ export async function getDeploymentSeed(network: NetworkTypes): Promise<string |
 		// 0x + 64 hex characters
 		throw new GeneralError("envSetup", "seedInvalidFormat", {
 			network,
-			seedVar: "DEPLOYER_SEED",
-			seed: `${seed.slice(0, 20)}...`
+			seedVar: "DEPLOYER_SEED"
 		});
 	}
 

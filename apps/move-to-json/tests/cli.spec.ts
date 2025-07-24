@@ -124,7 +124,9 @@ describe("move-to-json CLI", () => {
 
 		expect(exitCode).toBe(1);
 		const errOutput = errorBuffer.join("\n");
-		expect(errOutput).toContain("required option '-n, --network <network>' not specified");
+		expect(errOutput).toContain(
+			"Network must be specified via --network option or NETWORK environment variable"
+		);
 	});
 });
 

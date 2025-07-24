@@ -2,7 +2,7 @@
 	"error": {
 		"commands": {
 			"build": {
-				"networkRequired": "Network parameter is required",
+				"networkRequired": "Network must be specified via --network option or NETWORK environment variable. Use --load-env to load environment variables from a file.",
 				"invalidNetwork": "Invalid network: {network}. Must be one of: {validNetworks}",
 				"failedReadingOutputJson": "Failed to read output JSON file: {file}",
 				"contractProcessingFailed": "Failed to process contract: {file}",
@@ -18,8 +18,8 @@
 				"envFileLoadFailed": "Failed to load environment file: {envFilePath}",
 				"networkConfigInvalid": "Invalid network configuration",
 				"networkMismatch": "Network mismatch",
-				"rpcUrlRequired": "Invalid configuration: RPC URL is required",
-				"gasBudgetRequired": "Invalid configuration: gas budget is required",
+				"rpcUrlRequired": "Missing required RPC_URL environment variable. Set RPC_URL in your environment or use --load-env to load from configuration file (e.g., configs/{network}.env).",
+				"gasBudgetRequired": "Missing required GAS_BUDGET environment variable. Set GAS_BUDGET in your environment or use --load-env to load from configuration file (e.g., configs/{network}.env).",
 				"invalidContractsFile": "Invalid contracts file: must contain an object",
 				"contractsLoadFailed": "Failed to load compiled contracts",
 				"insufficientBalance": "Insufficient wallet balance for deployment",
@@ -37,15 +37,16 @@
 				"noPackageData": "No package data found for contract in compiled modules",
 				"packageNotFoundOnNetwork": "Package {packageId} not found on network {network}. Please ensure the package is deployed.",
 				"dryRunInvalidConfig": "Dry run failed due to invalid configuration",
-				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects."
+				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects.",
+				"networkRequired": "Network must be specified via --network option or NETWORK environment variable. Use --load-env to load environment variables from a file."
 			}
 		},
 		"envSetup": {
 			"envFileLoadFailed": "Failed to load environment file: {envFilePath}",
-			"mnemonicMissing": "Missing deployment mnemonic for {network}. Please set {mnemonicVar} in configs/{network}.env file.\n\nYou can generate a mnemonic using:\nnpx \"@twin.org/wallet-cli\" mnemonic --env wallet.env\n\nThen add the MNEMONIC value to your configs/{network}.env file:\n{mnemonicVar}=\"word1 word2 word3 ... word24\"\n\nSee configs/{network}.env.example for reference.",
-			"mnemonicInvalidFormat": "Invalid mnemonic format for {network}. Expected 24 words, got {wordCount}.\nPlease ensure {mnemonicVar} in configs/{network}.env contains a valid 24-word mnemonic phrase.",
+			"mnemonicMissing": "Missing required DEPLOYER_MNEMONIC environment variable for {network}. Set DEPLOYER_MNEMONIC in your environment or use --load-env to load from configuration file (e.g., configs/{network}.env).\n\nYou can generate a mnemonic using:\nnpx \"@twin.org/wallet-cli\" mnemonic --env wallet.env\n\nThen add the MNEMONIC value to your configs/{network}.env file:\n{mnemonicVar}=\"word1 word2 word3 ... word24\"\n\nSee configs/{network}.env.example for reference.",
+			"mnemonicInvalidFormat": "Invalid DEPLOYER_MNEMONIC environment variable format for {network}. Expected 24 words, got {wordCount}.\nPlease ensure {mnemonicVar} in your environment or configs/{network}.env contains a valid 24-word mnemonic phrase.",
 			"mnemonicValidationFailed": "Mnemonic validation failed",
-			"seedInvalidFormat": "Invalid seed format for {network}. Expected hex string starting with 0x and at least 64 characters.\nPlease ensure {seedVar} in configs/{network}.env contains a valid hex seed value."
+			"seedInvalidFormat": "Invalid DEPLOYER_SEED environment variable format for {network}. Expected hex string starting with 0x and at least 64 characters.\nPlease ensure {seedVar} in your environment or configs/{network}.env contains a valid hex seed value."
 		}
 	},
 	"commands": {
@@ -163,9 +164,7 @@
 				"updatingContractsFile": "Updating contracts file...",
 				"requestingFaucetFunds": "Requesting funds from {network} faucet..."
 			},
-			"messages": {
-				"networkRequired": "Network is required"
-			},
+			"messages": {},
 			"section": {
 				"deploymentConfiguration": "Deployment Configuration",
 				"deploymentResults": "Deployment Results",

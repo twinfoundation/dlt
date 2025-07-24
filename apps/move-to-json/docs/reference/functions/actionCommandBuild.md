@@ -16,11 +16,11 @@ A glob pattern that matches one or more Move files
 
 Additional options.
 
-#### network
+#### network?
 
 [`NetworkTypes`](../type-aliases/NetworkTypes.md)
 
-Target network (testnet/devnet/mainnet).
+Target network (testnet/devnet/mainnet) - optional if NETWORK env var is set.
 
 #### output?
 

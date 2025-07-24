@@ -23,7 +23,7 @@ export function buildCommandBuild(program: Command): void {
 		.command("build")
 		.description(I18n.formatMessage("commands.build.description"))
 		.argument("<inputGlob>", I18n.formatMessage("commands.build.options.inputGlob.description"))
-		.requiredOption(
+		.option(
 			I18n.formatMessage("commands.build.options.network.param"),
 			I18n.formatMessage("commands.build.options.network.description")
 		)
@@ -41,17 +41,21 @@ export function buildCommandBuild(program: Command): void {
  * Action for the build command.
  * @param inputGlob A glob pattern that matches one or more Move files
  * @param opts Additional options.
- * @param opts.network Target network (testnet/devnet/mainnet).
+ * @param opts.network Target network (testnet/devnet/mainnet) - optional if NETWORK env var is set.
  * @param opts.output Where we store the final compiled modules.
  */
 export async function actionCommandBuild(
 	inputGlob: string,
-	opts: { network: NetworkTypes; output?: string }
+	opts: { network?: NetworkTypes; output?: string }
 ): Promise<void> {
 	try {
-		Guards.arrayOneOf("commands", nameof(opts.network), opts.network, Object.values(NetworkTypes));
+		const network = opts.network ?? (process.env.NETWORK as NetworkTypes);
 
-		const network = opts.network;
+		if (!network) {
+			throw new GeneralError("commands", "commands.build.networkRequired");
+		}
+
+		Guards.arrayOneOf("commands", nameof(network), network, Object.values(NetworkTypes));
 
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();

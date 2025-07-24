@@ -38,7 +38,7 @@ export function buildCommandDeploy(program: Command): void {
 			I18n.formatMessage("commands.deploy.options.contracts.description"),
 			"smart-contract-deployments.json"
 		)
-		.requiredOption(
+		.option(
 			I18n.formatMessage("commands.deploy.options.network.param"),
 			I18n.formatMessage("commands.deploy.options.network.description")
 		)
@@ -116,13 +116,13 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
  * Action for the deploy command.
  * @param opts Command options.
  * @param opts.contracts Path to compiled modules JSON.
- * @param opts.network Network identifier.
+ * @param opts.network Network identifier - optional if NETWORK env var is set.
  * @param opts.dryRun Simulate deployment without executing.
  * @param opts.force Force redeployment of existing packages.
  */
 export async function actionCommandDeploy(opts: {
 	contracts?: string;
-	network: NetworkTypes;
+	network?: NetworkTypes;
 	dryRun?: boolean;
 	force?: boolean;
 }): Promise<void> {
@@ -134,9 +134,13 @@ export async function actionCommandDeploy(opts: {
 		const dryRun = opts.dryRun ?? false;
 		const force = opts.force ?? false;
 
-		Guards.arrayOneOf("commands", nameof(opts.network), opts.network, Object.values(NetworkTypes));
+		const network = opts.network ?? (process.env.NETWORK as NetworkTypes);
 
-		const network = opts.network;
+		if (!network) {
+			throw new GeneralError("commands", "commands.deploy.networkRequired");
+		}
+
+		Guards.arrayOneOf("commands", nameof(network), network, Object.values(NetworkTypes));
 
 		// Verify the IOTA SDK before we do anything else
 		await verifyIotaSDK();
@@ -226,11 +230,15 @@ function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkT
 	}
 
 	if (!Is.stringValue(config.rpc?.url)) {
-		throw new GeneralError("commands", "commands.deploy.rpcUrlRequired");
+		throw new GeneralError("commands", "commands.deploy.rpcUrlRequired", {
+			network: expectedNetwork
+		});
 	}
 
 	if (!Is.number(config.deployment?.gasBudget)) {
-		throw new GeneralError("commands", "commands.deploy.gasBudgetRequired");
+		throw new GeneralError("commands", "commands.deploy.gasBudgetRequired", {
+			network: expectedNetwork
+		});
 	}
 }
 

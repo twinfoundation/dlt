@@ -32,11 +32,11 @@ npm install -g @twin.org/move-to-json
 ## Quick Start
 
 ```bash
-# Build contracts for mainnet using npx
-npx move-to-json build "src/**/*.move" --network mainnet --output smart-contract-deployments.json
+# Build contracts for mainnet using environment variables (recommended)
+npx move-to-json build "src/**/*.move" --load-env configs/mainnet.env --output smart-contract-deployments.json
 
-# Deploy to mainnet using npx
-npx move-to-json deploy --contracts _PATH-TO-CONTRACTS_ --network mainnet --load-env _PATH-TO-ENVS_
+# Deploy to mainnet using environment variables (recommended)
+npx move-to-json deploy --load-env configs/mainnet.env --contracts smart-contract-deployments.json
 ```
 
 ## Environment Setup for Production Deployments
@@ -66,11 +66,11 @@ Use the wallet CLI to generate secure mnemonics and then manually update the app
 
 Each network has its own configuration file in the `configs/` directory with the required deployment mnemonic:
 
-| Network | File                  | Required Variable           |
-| ------- | --------------------- | --------------------------- |
-| Testnet | `configs/testnet.env` | `TESTNET_DEPLOYER_MNEMONIC` |
-| Devnet  | `configs/devnet.env`  | `DEVNET_DEPLOYER_MNEMONIC`  |
-| Mainnet | `configs/mainnet.env` | `MAINNET_DEPLOYER_MNEMONIC` |
+| Network | File                  | Required Variable    |
+| ------- | --------------------- | -------------------- |
+| Testnet | `configs/testnet.env` | `_DEPLOYER_MNEMONIC` |
+| Devnet  | `configs/devnet.env`  | `_DEPLOYER_MNEMONIC` |
+| Mainnet | `configs/mainnet.env` | `_DEPLOYER_MNEMONIC` |
 
 ### Security Best Practices
 
@@ -110,24 +110,29 @@ npx "@twin.org/wallet-cli" address --load-env wallet.env --seed '!SEED' --count 
 Compile Move contracts for a specific network:
 
 ```bash
-# Using npx (recommended for global usage)
+# Using environment variables (recommended)
+npx move-to-json build "src/**/*.move" --load-env configs/<network>.env [--output <file>]
+
+# Using explicit network flag
 npx move-to-json build "src/**/*.move" --network <network> [--output <file>]
 
 # If installed globally
-move-to-json build "src/**/*.move" --network <network> [--output <file>]
+move-to-json build "src/**/*.move" --load-env configs/<network>.env [--output <file>]
 ```
 
 **Options:**
 
-- `--network <network>` - Target network (testnet/devnet/mainnet) **[Required]**
+- `--network <network>` - Target network (testnet/devnet/mainnet) **[Optional if using --load-env]**
+- `--load-env <file>` - Load environment variables from file (must contain NETWORK variable)
 - `--output <file>` - Output JSON file (default: smart-contract-deployments.json)
 
 **What it does:**
 
-1. Validates environment variables for the target network
-2. Cleans build artifacts and Move.lock files
-3. Compiles contracts using unified Move.toml (same bytecode for all networks)
-4. Generates network-aware JSON with package IDs and base64 modules
+1. Reads network from `--network` flag or `NETWORK` environment variable
+2. Validates environment variables for the target network
+3. Cleans build artifacts and Move.lock files
+4. Compiles contracts using unified Move.toml (same bytecode for all networks)
+5. Generates network-aware JSON with package IDs and base64 modules
 
 **Key Changes:**
 
@@ -138,11 +143,14 @@ move-to-json build "src/**/*.move" --network <network> [--output <file>]
 **Example:**
 
 ```bash
-# Build for testnet
-npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
+# Build for testnet using environment variables (recommended)
+npx move-to-json build "tests/fixtures/sources/**/*.move" --load-env configs/testnet.env --output tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
 
-# Build for mainnet (same bytecode as testnet)
-npx move-to-json build "src/contracts/**/*.move" --network mainnet --output smart-contract-deployments.json
+# Build for mainnet using environment variables (recommended)
+npx move-to-json build "src/contracts/**/*.move" --load-env configs/mainnet.env --output smart-contract-deployments.json
+
+# Alternative: using explicit network flag
+npx move-to-json build "tests/fixtures/sources/**/*.move" --network testnet --output tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
 ```
 
 ### deploy
@@ -150,25 +158,28 @@ npx move-to-json build "src/contracts/**/*.move" --network mainnet --output smar
 Deploy compiled contracts to the specified network:
 
 ```bash
-# Using npx (recommended for global usage)
-npx move-to-json deploy --network <network> [options]
+# Using environment variables (recommended)
+npx move-to-json deploy --load-env configs/<network>.env [--contracts <file>] [options]
+
+# Using explicit network flag
+npx move-to-json deploy --network <network> [--load-env configs/<network>.env] [options]
 
 # If installed globally
-move-to-json deploy --network <network> [options]
+move-to-json deploy --load-env configs/<network>.env [--contracts <file>] [options]
 ```
 
 **Options:**
 
-- `--network <network>` - Network identifier (testnet/devnet/mainnet) **[Required]**
+- `--network <network>` - Network identifier (testnet/devnet/mainnet) **[Optional if using --load-env]**
+- `--load-env <file>` - Load environment variables from file (must contain NETWORK variable)
 - `--contracts <file>` - Compiled modules JSON file (default: smart-contract-deployments.json)
-- `--load-env <file>` - Configuration of the environmental variables
 - `--dry-run` - Simulate deployment without executing
 - `--force` - Force redeployment of existing packages
 
 **What it does:**
 
 1. Switches IOTA CLI to target network environment
-2. Loads network-specific configuration from `configs/{network}.env` file
+2. Loads environment variables from the file specified via `--load-env` flag
 3. Validates deployment credentials are available
 4. Checks wallet balance against gas requirements
 5. Loads compiled contracts from JSON
@@ -199,14 +210,14 @@ iota client new-env --alias devnet --rpc https://api.devnet.iota.cafe
 **Example:**
 
 ```bash
-# Deploy to testnet
-npx move-to-json deploy --network testnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env
+# Deploy to testnet using environment variables (recommended)
+npx move-to-json deploy --load-env configs/testnet.env --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
 
-# Deploy to mainnet
-npx move-to-json deploy --network mainnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env
+# Deploy to mainnet using environment variables (recommended)
+npx move-to-json deploy --load-env configs/mainnet.env --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json
 
 # Dry run (simulation)
-npx move-to-json deploy --network testnet --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json  --load-env configs/testnet.env --dry-run
+npx move-to-json deploy --load-env configs/testnet.env --contracts tests/fixtures/smart-contract-deployments/smart-contract-deployments.json --dry-run
 ```
 
 **Output:**
@@ -325,108 +336,7 @@ iota client call --package 0x2 --module package --function upgrade \
   --gas-budget 50000000
 ```
 
-### Security Considerations
-
-- **🔐 Keep UpgradeCap secure**: Treat it like a private key
-- **📱 Backup regularly**: Include UpgradeCap IDs in your backup strategy
-- **🚫 Never share publicly**: UpgradeCap grants full upgrade control
-- **✅ Version control**: Store smart-contract-deployments.json in secure version control
-
-## Network Configuration Files
-
-The tool uses environment configuration files for each network in the `configs/` directory:
-
-### configs/mainnet.env
-
-```env
-# IOTA Mainnet Network Configuration
-NETWORK=mainnet
-
-# RPC Configuration
-RPC_URL=https://api.mainnet.iota.cafe
-RPC_TIMEOUT=60000
-
-# Deployment Configuration
-GAS_BUDGET=100000000
-CONFIRMATION_TIMEOUT=120
-
-# Wallet Configuration
-MAINNET_DEPLOYER_MNEMONIC="word1 word2 word3 ... word24"
-ADDRESS_INDEX=0
-```
-
-### configs/testnet.env
-
-```env
-# IOTA Testnet Network Configuration
-NETWORK=testnet
-
-# RPC Configuration
-RPC_URL=https://api.testnet.iota.cafe
-RPC_TIMEOUT=60000
-
-# Deployment Configuration
-GAS_BUDGET=50000000
-CONFIRMATION_TIMEOUT=60
-
-# Wallet Configuration
-TESTNET_DEPLOYER_MNEMONIC="word1 word2 word3 ... word24"
-ADDRESS_INDEX=0
-```
-
-## Complete Workflow
-
-### 1. Development Workflow
-
-```bash
-# Set up environment file and generate credentials
-cp configs/testnet.env.example configs/testnet.env
-# Generate credentials and update testnet.env with your mnemonic
-
-# Build and test on testnet
-npx move-to-json build "src/**/*.move" --network testnet --output <OUTPUT_PATH>
-npx move-to-json deploy --network testnet --contracts <CONTRACTS_PATH>  --load-env <ENV_FILE_PATH>
-```
-
-### 2. Production Deployment
-
-```bash
-# Set up mainnet environment file and credentials
-cp configs/mainnet.env.example configs/mainnet.env
-# Generate secure credentials and update mainnet.env with your mnemonic
-
-# Build and deploy to mainnet
-npx move-to-json build "src/**/*.move" --network mainnet --output <OUTPUT_PATH>
-npx move-to-json deploy --network mainnet --contracts <CONTRACTS_PATH>  --load-env <ENV_FILE_PATH>
-```
-
-## Output Format
-
-The tool generates a network-aware JSON structure:
-
-```json
-{
-  "testnet": {
-    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": "0x2ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261",
-    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
-  },
-  "devnet": {
-    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": "0x2ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261",
-    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
-  },
-  "mainnet": {
-    "packageId": "0x1bd7add2dc75ba6a840e21792a1ba51d807ce9c3b29c4fa2140f383e77988daa",
-    "package": "oRzrCwYAAAAKAQAKAgoQ...",
-    "deployedPackageId": "0x5fg6dh75fi69ec073e7f1g1b8e7f6e5d4c3b2a1f0e9d8c7b6a594837261",
-    "upgradeCap": "0x5ce8bef3ed47ca852c4dc4a961d5f8f9c6e5d4c3b2a1f0e9d8c7b6a594837261"
-  }
-}
-```
-
 ## Contributing
 
-To contribute to this package see the guidelines for building and publishing in [CONTRIBUTING](./CONTRIBUTING.md)
+To contribute to this package see the guidelines for building and publishing in
+[CONTRIBUTING](./CONTRIBUTING.md)
