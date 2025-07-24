@@ -11,7 +11,6 @@
 
 ## Type Aliases
 
-- [IContractFile](type-aliases/IContractFile.md)
 - [ISmartContractDeployments](type-aliases/ISmartContractDeployments.md)
 - [NetworkTypes](type-aliases/NetworkTypes.md)
 

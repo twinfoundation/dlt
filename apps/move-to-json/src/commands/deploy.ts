@@ -12,8 +12,8 @@ import { Iota } from "@twin.org/dlt-iota";
 import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
 import type { IContractData } from "../models/IContractData";
-import type { IContractFile } from "../models/IContractFile";
 import type { INetworkConfig } from "../models/INetworkConfig";
+import type { ISmartContractDeployments } from "../models/ISmartContractDeployments";
 import { NetworkTypes } from "../models/networkTypes";
 import {
 	validateDeploymentEnvironment,
@@ -161,15 +161,7 @@ export async function actionCommandDeploy(opts: {
 			});
 		}
 
-		// Handle flat structure - deploy the single contract directly
-		await deployContract(
-			"contract", // Use generic name since we have flat structure
-			networkContracts,
-			config,
-			network,
-			dryRun,
-			force
-		);
+		await deployContract("contract", networkContracts, config, network, dryRun, force);
 
 		if (!dryRun) {
 			await updateContractsFile(contractsPath, contractsData);
@@ -247,7 +239,7 @@ function validateNetworkConfig(config: INetworkConfig, expectedNetwork: NetworkT
  * @param contractsPath Path to contracts file.
  * @returns Compiled contracts data.
  */
-async function loadCompiledContracts(contractsPath: string): Promise<IContractFile> {
+async function loadCompiledContracts(contractsPath: string): Promise<ISmartContractDeployments> {
 	try {
 		if (!(await CLIUtils.fileExists(contractsPath))) {
 			throw new GeneralError("commands", "commands.deploy.contractsFileNotFound", {
@@ -255,7 +247,7 @@ async function loadCompiledContracts(contractsPath: string): Promise<IContractFi
 			});
 		}
 
-		const contracts = await CLIUtils.readJsonFile<IContractFile>(contractsPath);
+		const contracts = await CLIUtils.readJsonFile<ISmartContractDeployments>(contractsPath);
 
 		if (!Is.object(contracts)) {
 			throw new GeneralError("commands", "commands.deploy.invalidContractsFile");
@@ -284,7 +276,6 @@ async function validateEnvironmentForNetwork(
 	config: INetworkConfig,
 	isDryRun: boolean = false
 ): Promise<string> {
-	// Get wallet address for all networks
 	const walletAddress = await getDeploymentWalletAddress(
 		network,
 		config.deployment.wallet.addressIndex
@@ -300,11 +291,10 @@ async function validateEnvironmentForNetwork(
 		CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.walletAddress"), walletAddress, 1);
 	}
 
-	// Validate deployment environment for mainnet
 	if (network === "mainnet") {
 		await validateDeploymentEnvironment(network);
 	} else if ((network === "testnet" || network === "devnet") && !isDryRun) {
-		// For testnet/devnet, request funds from faucet (only for actual deployment)
+		// For testnet/devnet, request funds from faucet
 		await requestFaucetFunds(network, walletAddress);
 	}
 
@@ -431,7 +421,6 @@ async function handleActualDeployment(
 		const walletAddress = await validateEnvironmentForNetwork(network, config, false);
 		await checkWalletBalance(network, config, walletAddress, false);
 
-		// Deploy using IOTA CLI
 		const deploymentResult = await deployWithIotaCli(config.deployment.gasBudget);
 
 		contractData.deployedPackageId = deploymentResult.packageId;
@@ -520,14 +509,7 @@ async function getDeploymentWalletAddress(
 		seed = Bip39.mnemonicToSeed(mnemonic);
 	}
 
-	const addresses = Iota.getAddresses(
-		seed,
-		Iota.DEFAULT_COIN_TYPE,
-		0, // accountIndex
-		addressIndex, // startAddressIndex
-		1, // count - we only need one address
-		false // isInternal
-	);
+	const addresses = Iota.getAddresses(seed, Iota.DEFAULT_COIN_TYPE, 0, addressIndex, 1, false);
 
 	return addresses[0];
 }
@@ -549,7 +531,7 @@ function nanosToIota(nanos: number): number {
  */
 async function requestFaucetFunds(network: NetworkTypes, walletAddress: string): Promise<void> {
 	if (network !== "testnet" && network !== "devnet") {
-		return; // Only fund for testnet and devnet
+		return;
 	}
 	CLIDisplay.task(
 		I18n.formatMessage("commands.deploy.progress.requestingFaucetFunds", { network })
@@ -594,7 +576,7 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 async function deployWithIotaCli(
 	gasBudget: number
 ): Promise<{ packageId: string; upgradeCap?: string }> {
-	// Find the Move project directory by looking for Move.toml files
+	// Find the Move project directory
 	const moveTomlPaths: string[] = [];
 	await searchDirectoryForMoveToml(process.cwd(), moveTomlPaths);
 
@@ -604,8 +586,8 @@ async function deployWithIotaCli(
 		});
 	}
 
-	// TO-DO: Handle smart-contract-deployments directory gracefully (Windows compatibility)
-	const moveProjectRoot = `${path.dirname(moveTomlPaths[0])}/smart-contract-deployments`;
+	// Use the actual Move project directory
+	const moveProjectRoot = path.dirname(moveTomlPaths[0]);
 
 	CLIDisplay.value(
 		I18n.formatMessage("commands.deploy.labels.moveProjectRoot"),
@@ -655,7 +637,7 @@ async function deployWithIotaCli(
  */
 async function updateContractsFile(
 	contractsPath: string,
-	contractsData: IContractFile
+	contractsData: ISmartContractDeployments
 ): Promise<void> {
 	try {
 		await CLIUtils.writeJsonFile(contractsPath, contractsData, false);
