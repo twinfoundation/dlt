@@ -21,17 +21,6 @@ runs:
         sudo mv iota /usr/local/bin/iota
         iota --version
 
-    - name: Download SUI CLI
-      shell: bash
-      run: |
-        cd ..
-        wget https://github.com/MystenLabs/sui/releases/download/testnet-v1.47.0/sui-testnet-v1.47.0-ubuntu-x86_64.tgz -O sui-cli.tgz
-        tar xzf sui-cli.tgz
-        rm sui-cli.tgz
-        chmod +x sui
-        sudo mv sui /usr/local/bin/sui
-        sui --version
-
     - name: Start Twin Gas Station Test Environment
       shell: bash
       run: |

@@ -15,7 +15,10 @@
 		"tsconfig.json",
 		"typedoc.json",
 		".eslintrc.cjs",
-		"**/wordlists/**"
+		"**/wordlists/**",
+		"devnet.env.*",
+		"mainnet.env.*",
+		"testnet.env.*"
 	],
 	"words": [
 		"abbrev",
@@ -49,7 +52,10 @@
 		"Stiftung",
 		"supervisorctl",
 		"supervisord",
-		"twinfoundation"
+		"twinfoundation",
+		"Nanos",
+		"devnet",
+		"FAUCET"
 	],
 	"ignoreRegExpList": [
 		"/from\\s+(['\"]).*\\1/",

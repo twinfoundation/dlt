@@ -31,11 +31,15 @@
 		"prepare": "ts-patch install -s"
 	},
 	"dependencies": {
+		"@iota/iota-sdk": "1.4.0",
 		"@twin.org/cli-core": "next",
 		"@twin.org/core": "next",
 		"@twin.org/crypto": "next",
+		"@twin.org/dlt-iota": "next",
 		"@twin.org/nameof": "next",
+		"@twin.org/wallet-connector-iota": "next",
 		"commander": "14.0.0",
+		"dotenv": "16.5.0",
 		"fast-glob": "3.3.3"
 	},
 	"devDependencies": {

@@ -8,5 +8,16 @@ node_modules
 coverage
 *.tgz
 **/.tmp
+.env
 .env.dev
+mainnet.env
+devnet.env
+testnet.env
 vitest.config.ts.timestamp*
+
+# Move contract build artifacts
+**/build/
+**/Move.lock
+**/Move.toml.copy
+**/.coverage/
+**/.trace/
