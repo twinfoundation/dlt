@@ -2,7 +2,6 @@
 	"error": {
 		"commands": {
 			"build": {
-				"networkRequired": "Network must be specified via --network option or NETWORK environment variable. Use --load-env to load environment variables from a file.",
 				"invalidNetwork": "Invalid network: {network}. Must be one of: {validNetworks}",
 				"failedReadingOutputJson": "Failed to read output JSON file: {file}",
 				"contractProcessingFailed": "Failed to process contract: {file}",
@@ -37,8 +36,7 @@
 				"noPackageData": "No package data found for contract in compiled modules",
 				"packageNotFoundOnNetwork": "Package {packageId} not found on network {network}. Please ensure the package is deployed.",
 				"dryRunInvalidConfig": "Dry run failed due to invalid configuration",
-				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects.",
-				"networkRequired": "Network must be specified via --network option or NETWORK environment variable. Use --load-env to load environment variables from a file."
+				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects."
 			}
 		},
 		"envSetup": {

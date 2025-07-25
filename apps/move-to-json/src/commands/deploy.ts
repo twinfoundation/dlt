@@ -136,10 +136,6 @@ export async function actionCommandDeploy(opts: {
 
 		const network = opts.network ?? (process.env.NETWORK as NetworkTypes);
 
-		if (!network) {
-			throw new GeneralError("commands", "commands.deploy.networkRequired");
-		}
-
 		Guards.arrayOneOf("commands", nameof(network), network, Object.values(NetworkTypes));
 
 		// Verify the IOTA SDK before we do anything else

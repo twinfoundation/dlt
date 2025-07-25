@@ -51,10 +51,6 @@ export async function actionCommandBuild(
 	try {
 		const network = opts.network ?? (process.env.NETWORK as NetworkTypes);
 
-		if (!network) {
-			throw new GeneralError("commands", "commands.build.networkRequired");
-		}
-
 		Guards.arrayOneOf("commands", nameof(network), network, Object.values(NetworkTypes));
 
 		// Verify the IOTA SDK before we do anything else

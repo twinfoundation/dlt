@@ -66,11 +66,11 @@ Use the wallet CLI to generate secure mnemonics and then manually update the app
 
 Each network has its own configuration file in the `configs/` directory with the required deployment mnemonic:
 
-| Network | File                  | Required Variable    |
-| ------- | --------------------- | -------------------- |
-| Testnet | `configs/testnet.env` | `_DEPLOYER_MNEMONIC` |
-| Devnet  | `configs/devnet.env`  | `_DEPLOYER_MNEMONIC` |
-| Mainnet | `configs/mainnet.env` | `_DEPLOYER_MNEMONIC` |
+| Network | File                  | Required Variable   |
+| ------- | --------------------- | ------------------- |
+| Testnet | `configs/testnet.env` | `DEPLOYER_MNEMONIC` |
+| Devnet  | `configs/devnet.env`  | `DEPLOYER_MNEMONIC` |
+| Mainnet | `configs/mainnet.env` | `DEPLOYER_MNEMONIC` |
 
 ### Security Best Practices
 

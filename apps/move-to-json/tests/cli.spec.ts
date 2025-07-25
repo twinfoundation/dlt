@@ -125,7 +125,7 @@ describe("move-to-json CLI", () => {
 		expect(exitCode).toBe(1);
 		const errOutput = errorBuffer.join("\n");
 		expect(errOutput).toContain(
-			"Network must be specified via --network option or NETWORK environment variable"
+			'Property "network" must be one of [testnet, devnet, mainnet], it is "undefined"'
 		);
 	});
 });
