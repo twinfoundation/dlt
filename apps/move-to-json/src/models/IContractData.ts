@@ -12,7 +12,7 @@ export interface IContractData {
 	/**
 	 * Base64-encoded package bytecode
 	 */
-	package: string | string[];
+	packageBytecode: string | string[];
 	/**
 	 * Package ID from actual deployment
 	 */
@@ -20,5 +20,9 @@ export interface IContractData {
 	/**
 	 * UpgradeCap object ID for package upgrades
 	 */
-	upgradeCap?: string;
+	upgradeCapabilityId?: string;
+	/**
+	 * Migration state ID for tracking contract migrations
+	 */
+	migrationStateId?: string;
 }

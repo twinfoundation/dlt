@@ -36,7 +36,8 @@
 				"noPackageData": "No package data found for contract in compiled modules",
 				"packageNotFoundOnNetwork": "Package {packageId} not found on network {network}. Please ensure the package is deployed.",
 				"dryRunInvalidConfig": "Dry run failed due to invalid configuration",
-				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects."
+				"noMoveTomlFilesFound": "No Move.toml files found in current directory or subdirectories. Make sure you're running this from a directory containing Move projects.",
+				"addressSwitchFailed": "Failed to switch to active address {targetAddress} for {network}. Active address: {activeAddress}"
 			}
 		},
 		"envSetup": {
@@ -122,7 +123,7 @@
 				"dryRunMode": "Dry Run Mode",
 				"forceMode": "Force Mode",
 				"deployedPackageId": "Deployed Package ID",
-				"upgradeCap": "Upgrade Cap",
+				"upgradeCapabilityId": "Upgrade Capability ID",
 				"gasUsed": "Gas Used",
 				"deploymentStatus": "Deployment Status",
 				"iotaEnvironmentCheck": "IOTA environment check",
@@ -139,7 +140,10 @@
 				"walletAddress": "Wallet Address",
 				"walletBalance": "Wallet Balance",
 				"deployedPackageIdResult": "Deployed Package ID",
-				"upgradeCapId": "UpgradeCap ID",
+				"upgradeCapabilityIdResult": "Upgrade Capability ID",
+				"migrationStateIdResult": "Migration State ID",
+				"importedDeployerAddress": "Imported deployer address",
+				"switchedActiveAddress": "Switched active address",
 				"moveProjectRoot": "Move Project Root",
 				"publishCommand": "Publish Command",
 				"workingDirectory": "Working Directory",
@@ -158,6 +162,7 @@
 				"loadingContracts": "Loading compiled contracts...",
 				"checkingEnvironment": "Checking IOTA CLI environment...",
 				"settingEnvironment": "Setting IOTA CLI environment...",
+				"importingDeployerAddress": "Importing deployer address to IOTA CLI...",
 				"deployingContract": "Deploying contract: {contractName} ({network})",
 				"updatingContractsFile": "Updating contracts file...",
 				"requestingFaucetFunds": "Requesting funds from {network} faucet..."

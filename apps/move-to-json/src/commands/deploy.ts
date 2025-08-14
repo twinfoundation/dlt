@@ -54,7 +54,7 @@ export function buildCommandDeploy(program: Command): void {
 }
 
 /**
- * Switch IOTA CLI to the target network environment.
+ * Switch IOTA CLI to the target network environment and set the active address.
  * @param network Target network to switch to
  * @param dryRun Whether this is a dry run (checks environment but doesn't switch)
  */
@@ -85,12 +85,46 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 			return;
 		}
 
-		// Switch to target network environment
-		await execAsync(`iota client switch --env ${network}`);
+		// Derive the target address from existing mnemonic/seed
+		const addressIndex = Coerce.number(process.env.ADDRESS_INDEX) || 0;
+		const targetAddress = await getDeploymentWalletAddress(network, addressIndex);
+
+		// Check if address exists in IOTA CLI
+		const { stdout: addressListOutput } = await execAsync("iota client addresses --json");
+		const addressInfo = JSON.parse(addressListOutput);
+		const addressExists = addressInfo.addresses.some(
+			([_, addr]: [string, string]) => addr === targetAddress
+		);
+
+		if (!addressExists) {
+			// Import the address using the mnemonic
+			CLIDisplay.task(I18n.formatMessage("commands.deploy.progress.importingDeployerAddress"));
+
+			const mnemonic = await getDeploymentMnemonic(network);
+			const aliasName = `deployer-${network}`;
+
+			await execAsync(
+				`iota client new-address --recovery-phrase "${mnemonic}" --derivation-path "m/44'/4218'/0'/0'/${addressIndex}'" --alias "${aliasName}"`
+			);
+
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.importedDeployerAddress"),
+				`${aliasName} (${targetAddress})`,
+				1
+			);
+		}
+
+		// Switch both environment and address in one command
+		await execAsync(`iota client switch --env ${network} --address ${targetAddress}`);
 
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.switchedIotaEnvironment"),
 			network,
+			1
+		);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.switchedActiveAddress"),
+			targetAddress,
 			1
 		);
 
@@ -100,6 +134,17 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 			throw new GeneralError("commands", "commands.deploy.environmentSwitchFailed", {
 				network,
 				activeEnv
+			});
+		}
+
+		// Verify address switch was successful
+		const { stdout: activeAddressOutput } = await execAsync("iota client active-address");
+		const activeAddress = activeAddressOutput.trim();
+		if (activeAddress !== targetAddress) {
+			throw new GeneralError("commands", "commands.deploy.addressSwitchFailed", {
+				network,
+				targetAddress,
+				activeAddress
 			});
 		}
 	} catch (error) {
@@ -428,7 +473,12 @@ async function handleActualDeployment(
 		const deploymentResult = await deployWithIotaCli(config.deployment.gasBudget);
 
 		contractData.deployedPackageId = deploymentResult.packageId;
-		contractData.upgradeCap = deploymentResult.upgradeCap;
+		contractData.upgradeCapabilityId = deploymentResult.upgradeCap;
+
+		// Extract migration state ID from deployment transaction if present
+		if (deploymentResult.migrationStateId) {
+			contractData.migrationStateId = deploymentResult.migrationStateId;
+		}
 
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.deployedPackageIdResult"),
@@ -437,8 +487,15 @@ async function handleActualDeployment(
 		);
 		if (deploymentResult.upgradeCap) {
 			CLIDisplay.value(
-				I18n.formatMessage("commands.deploy.labels.upgradeCapId"),
+				I18n.formatMessage("commands.deploy.labels.upgradeCapabilityIdResult"),
 				deploymentResult.upgradeCap,
+				1
+			);
+		}
+		if (contractData.migrationStateId) {
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.migrationStateIdResult"),
+				contractData.migrationStateId,
 				1
 			);
 		}
@@ -457,7 +514,7 @@ async function handleActualDeployment(
  * @param contractName Name of the contract
  * @param contractData Contract compilation data
  * @param contractData.packageId Package ID
- * @param contractData.package Package
+ * @param contractData.packageBytecode Package bytecode
  * @param contractData.deployedPackageId Deployed package ID
  * @param config Network configuration
  * @param network Target network
@@ -575,11 +632,11 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 /**
  * Deploy contract using IOTA CLI.
  * @param gasBudget Gas budget for deployment.
- * @returns Deployment result with package ID.
+ * @returns Deployment result with package ID, upgrade cap, and migration state ID.
  */
 async function deployWithIotaCli(
 	gasBudget: number
-): Promise<{ packageId: string; upgradeCap?: string }> {
+): Promise<{ packageId: string; upgradeCap?: string; migrationStateId?: string }> {
 	// Find the Move project directory
 	const moveTomlPaths: string[] = [];
 	await searchDirectoryForMoveToml(process.cwd(), moveTomlPaths);
@@ -628,9 +685,17 @@ async function deployWithIotaCli(
 			change.objectType === "0x2::package::UpgradeCap"
 	)?.objectId;
 
+	// Extract MigrationState ID from created objects (universal pattern)
+	// Look for any object type ending with "::MigrationState"
+	const migrationStateId = result.objectChanges?.find(
+		(change: { objectType?: string; objectId?: string }) =>
+			change.objectType?.endsWith("::MigrationState")
+	)?.objectId;
+
 	return {
 		packageId,
-		upgradeCap
+		upgradeCap,
+		migrationStateId
 	};
 }
 

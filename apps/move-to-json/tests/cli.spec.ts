@@ -112,7 +112,7 @@ describe("move-to-json CLI", () => {
 
 		// Check contract data in target network (testnet) - flat structure
 		expect(json.testnet.packageId).toMatch(/^0x/);
-		expect(json.testnet.package).toBeDefined();
+		expect(json.testnet.packageBytecode).toBeDefined();
 		expect(json.testnet.deployedPackageId).toBeUndefined();
 	});
 

@@ -143,7 +143,7 @@ export async function actionCommandBuild(
 					const targetNetworkData = finalJson[network];
 
 					targetNetworkData.packageId = packageId;
-					targetNetworkData.package = packageData;
+					targetNetworkData.packageBytecode = packageData;
 
 					CLIDisplay.value(`Updated ${network} package`, contractName, 2);
 				}

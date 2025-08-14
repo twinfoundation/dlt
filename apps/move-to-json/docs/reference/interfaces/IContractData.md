@@ -12,9 +12,9 @@ Package ID generated during build
 
 ***
 
-### package
+### packageBytecode
 
-> **package**: `string` \| `string`[]
+> **packageBytecode**: `string` \| `string`[]
 
 Base64-encoded package bytecode
 
@@ -28,8 +28,16 @@ Package ID from actual deployment
 
 ***
 
-### upgradeCap?
+### upgradeCapabilityId?
 
-> `optional` **upgradeCap**: `string`
+> `optional` **upgradeCapabilityId**: `string`
 
 UpgradeCap object ID for package upgrades
+
+***
+
+### migrationStateId?
+
+> `optional` **migrationStateId**: `string`
+
+Migration state ID for tracking contract migrations
