@@ -335,8 +335,3 @@ iota client call --package 0x2 --module package --function upgrade \
   --args 0xfd6269c28e3931e41aa9d9e08ffabb8162cf1fd0baaef14094b4442e6c743edf \
   --gas-budget 50000000
 ```
-
-## Contributing
-
-To contribute to this package see the guidelines for building and publishing in
-[CONTRIBUTING](./CONTRIBUTING.md)
