@@ -343,8 +343,8 @@ async function validateEnvironmentForNetwork(
 	if (network === "mainnet") {
 		await validateDeploymentEnvironment(network);
 	} else if ((network === "testnet" || network === "devnet") && !isDryRun) {
-		// For testnet/devnet, request funds from faucet
-		await requestFaucetFunds(network, walletAddress);
+		// For testnet/devnet, check balance first and only request funds if needed
+		await checkBalanceAndRequestFaucetIfNeeded(network, config, walletAddress);
 	}
 
 	return walletAddress;
@@ -626,6 +626,62 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 			I18n.formatMessage("commands.deploy.labels.faucetNoFundsAdded", { network }),
 			2
 		);
+	}
+}
+
+/**
+ * Check wallet balance and request faucet funds only if needed.
+ * @param network The target network (testnet or devnet).
+ * @param config Network configuration.
+ * @param walletAddress The wallet address to check and potentially fund.
+ * @returns Promise that resolves when balance check and optional funding is complete.
+ */
+async function checkBalanceAndRequestFaucetIfNeeded(
+	network: NetworkTypes,
+	config: INetworkConfig,
+	walletAddress: string
+): Promise<void> {
+	if (network !== "testnet" && network !== "devnet") {
+		return;
+	}
+
+	// Check current balance
+	const client = new IotaClient({ url: config.rpc.url });
+	const balanceIota = await client.getBalance({ owner: walletAddress });
+	const balanceNumberIota = Number(balanceIota.totalBalance);
+	const requiredIota = nanosToIota(config.deployment.gasBudget);
+
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.walletBalance"),
+		`${balanceNumberIota.toFixed(2)} IOTA`,
+		1
+	);
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.gasBudget"),
+		`${requiredIota.toFixed(2)} IOTA`,
+		1
+	);
+
+	// Only request faucet funds if balance is insufficient
+	if (balanceNumberIota < requiredIota) {
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.warning"),
+			I18n.formatMessage("commands.deploy.labels.insufficientBalance", {
+				currentBalance: balanceNumberIota.toFixed(2),
+				requiredBalance: requiredIota.toFixed(2)
+			}),
+			1
+		);
+
+		CLIDisplay.task("Requesting additional funds from faucet...");
+		await requestFaucetFunds(network, walletAddress);
+
+		// Check balance again after faucet request
+		const updatedBalanceIota = await client.getBalance({ owner: walletAddress });
+		const updatedBalanceNumberIota = Number(updatedBalanceIota.totalBalance);
+		CLIDisplay.value("Updated wallet balance", `${updatedBalanceNumberIota.toFixed(2)} IOTA`, 1);
+	} else {
+		CLIDisplay.value("Balance check", "✅ Sufficient funds available, skipping faucet request", 1);
 	}
 }
 
