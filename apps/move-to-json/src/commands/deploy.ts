@@ -365,9 +365,12 @@ async function checkWalletBalance(
 	isDryRun: boolean = false
 ): Promise<number> {
 	const client = new IotaClient({ url: config.rpc.url });
-	const balanceIota = await client.getBalance({ owner: walletAddress });
-	const balanceNumberIota = Number(balanceIota.totalBalance);
-	const requiredIota = nanosToIota(config.deployment.gasBudget);
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
+	const requiredInNanos = config.deployment.gasBudget;
+
+	const balanceInIota = nanosToIota(balanceInNanos);
+	const requiredInIota = nanosToIota(requiredInNanos);
 
 	const balanceLabel = isDryRun
 		? "commands.deploy.labels.dryRunWalletBalance"
@@ -376,24 +379,24 @@ async function checkWalletBalance(
 		? "commands.deploy.labels.dryRunGasBudget"
 		: "commands.deploy.labels.gasBudget";
 
-	CLIDisplay.value(I18n.formatMessage(balanceLabel), `${balanceNumberIota.toFixed(2)} IOTA`, 1);
-	CLIDisplay.value(I18n.formatMessage(gasBudgetLabel), `${requiredIota.toFixed(2)} IOTA`, 1);
+	CLIDisplay.value(I18n.formatMessage(balanceLabel), `${balanceInIota.toFixed(2)} IOTA`, 1);
+	CLIDisplay.value(I18n.formatMessage(gasBudgetLabel), `${requiredInIota.toFixed(2)} IOTA`, 1);
 
-	// Handle insufficient balance based on network and run type
-	if (balanceNumberIota < requiredIota) {
+	// Handle insufficient balance based on network and run type (compare in same units - nanos)
+	if (balanceInNanos < requiredInNanos) {
 		if (isDryRun) {
 			CLIDisplay.value(
 				I18n.formatMessage("commands.deploy.labels.warning"),
 				I18n.formatMessage("commands.deploy.labels.insufficientBalanceWarning", {
-					currentBalance: balanceNumberIota.toFixed(2),
-					requiredBalance: requiredIota.toFixed(2)
+					currentBalance: balanceInIota.toFixed(2),
+					requiredBalance: requiredInIota.toFixed(2)
 				}),
 				2
 			);
 		} else if (network === "mainnet") {
 			throw new GeneralError("commands", "commands.deploy.insufficientBalance", {
-				balance: balanceNumberIota,
-				required: requiredIota,
+				balance: balanceInIota,
+				required: requiredInIota,
 				walletAddress
 			});
 		} else {
@@ -402,8 +405,8 @@ async function checkWalletBalance(
 				I18n.formatMessage("commands.deploy.labels.warning"),
 				I18n.formatMessage("commands.deploy.labels.insufficientBalanceAfterFaucet", {
 					network,
-					balance: balanceNumberIota.toFixed(2),
-					required: requiredIota.toFixed(2),
+					balance: balanceInIota.toFixed(2),
+					required: requiredInIota.toFixed(2),
 					walletAddress
 				}),
 				2
@@ -411,7 +414,7 @@ async function checkWalletBalance(
 		}
 	}
 
-	return balanceNumberIota;
+	return balanceInNanos;
 }
 
 /**
@@ -609,14 +612,14 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 	}
 
 	const client = new IotaClient({ url: process.env.RPC_URL ?? "" });
-	const balanceIota = await client.getBalance({ owner: walletAddress });
-	const balanceNumberIota = Number(balanceIota.totalBalance);
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
 
-	if (balanceNumberIota > 0n) {
-		const amountIota = nanosToIota(Number(balanceNumberIota));
+	if (balanceInNanos > 0) {
+		const amountInIota = nanosToIota(balanceInNanos);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.faucetFundsRequested"),
-			`${amountIota.toFixed(2)} IOTA`,
+			`${amountInIota.toFixed(2)} IOTA`,
 			1
 		);
 	} else {
@@ -646,28 +649,31 @@ async function checkBalanceAndRequestFaucetIfNeeded(
 
 	// Check current balance
 	const client = new IotaClient({ url: config.rpc.url });
-	const balanceIota = await client.getBalance({ owner: walletAddress });
-	const balanceNumberIota = Number(balanceIota.totalBalance);
-	const requiredIota = nanosToIota(config.deployment.gasBudget);
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
+	const requiredInNanos = config.deployment.gasBudget;
+	// Convert to IOTA for display purposes
+	const balanceInIota = nanosToIota(balanceInNanos);
+	const requiredInIota = nanosToIota(requiredInNanos);
 
 	CLIDisplay.value(
 		I18n.formatMessage("commands.deploy.labels.walletBalance"),
-		`${balanceNumberIota.toFixed(2)} IOTA`,
+		`${balanceInIota.toFixed(2)} IOTA`,
 		1
 	);
 	CLIDisplay.value(
 		I18n.formatMessage("commands.deploy.labels.gasBudget"),
-		`${requiredIota.toFixed(2)} IOTA`,
+		`${requiredInIota.toFixed(2)} IOTA`,
 		1
 	);
 
-	// Only request faucet funds if balance is insufficient
-	if (balanceNumberIota < requiredIota) {
+	// Only request faucet funds if balance is insufficient (compare in same units - nanos)
+	if (balanceInNanos < requiredInNanos) {
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.warning"),
 			I18n.formatMessage("commands.deploy.labels.insufficientBalance", {
-				currentBalance: balanceNumberIota.toFixed(2),
-				requiredBalance: requiredIota.toFixed(2)
+				currentBalance: balanceInIota.toFixed(2),
+				requiredBalance: requiredInIota.toFixed(2)
 			}),
 			1
 		);
@@ -676,9 +682,10 @@ async function checkBalanceAndRequestFaucetIfNeeded(
 		await requestFaucetFunds(network, walletAddress);
 
 		// Check balance again after faucet request
-		const updatedBalanceIota = await client.getBalance({ owner: walletAddress });
-		const updatedBalanceNumberIota = Number(updatedBalanceIota.totalBalance);
-		CLIDisplay.value("Updated wallet balance", `${updatedBalanceNumberIota.toFixed(2)} IOTA`, 1);
+		const updatedBalanceResponse = await client.getBalance({ owner: walletAddress });
+		const updatedBalanceInNanos = Number(updatedBalanceResponse.totalBalance);
+		const updatedBalanceInIota = nanosToIota(updatedBalanceInNanos);
+		CLIDisplay.value("Updated wallet balance", `${updatedBalanceInIota.toFixed(2)} IOTA`, 1);
 	} else {
 		CLIDisplay.value("Balance check", "✅ Sufficient funds available, skipping faucet request", 1);
 	}
