@@ -475,7 +475,6 @@ async function handleActualDeployment(
 		contractData.deployedPackageId = deploymentResult.packageId;
 		contractData.upgradeCapabilityId = deploymentResult.upgradeCap;
 
-		// Extract migration state ID from deployment transaction if present
 		if (deploymentResult.migrationStateId) {
 			contractData.migrationStateId = deploymentResult.migrationStateId;
 		}
@@ -741,8 +740,7 @@ async function deployWithIotaCli(
 			change.objectType === "0x2::package::UpgradeCap"
 	)?.objectId;
 
-	// Extract MigrationState ID from created objects (universal pattern)
-	// Look for any object type ending with "::MigrationState"
+	// Extract MigrationState ID from created objects
 	const migrationStateId = result.objectChanges?.find(
 		(change: { objectType?: string; objectId?: string }) =>
 			change.objectType?.endsWith("::MigrationState")
