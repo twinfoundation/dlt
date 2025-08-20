@@ -7,7 +7,10 @@ import { Iota } from "../src/iota";
 
 console.debug("Setting up test environment from .env and .env.dev files");
 
-dotenv.config({ path: [path.join(__dirname, ".env"), path.join(__dirname, ".env.dev")] });
+dotenv.config({
+	path: [path.join(__dirname, ".env"), path.join(__dirname, ".env.dev")],
+	quiet: true
+});
 
 Guards.stringValue("TestEnv", "TEST_NODE_ENDPOINT", process.env.TEST_NODE_ENDPOINT);
 Guards.stringValue("TestEnv", "TEST_NETWORK", process.env.TEST_NETWORK);

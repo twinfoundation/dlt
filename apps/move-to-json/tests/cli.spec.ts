@@ -100,6 +100,8 @@ describe("move-to-json CLI", () => {
 			{ overrideOutputWidth: 1000 }
 		);
 
+		console.log(errorBuffer);
+
 		expect(exitCode).toBe(0);
 		const compiledFileExists = existsSync(TEST_OUTPUT_JSON);
 		expect(compiledFileExists).toBe(true);

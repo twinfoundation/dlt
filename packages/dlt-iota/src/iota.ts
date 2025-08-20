@@ -14,7 +14,7 @@ import {
 	type IError
 } from "@twin.org/core";
 import { Bip39, Bip44, KeyType } from "@twin.org/crypto";
-import type { ILoggingConnector } from "@twin.org/logging-models";
+import type { ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import { FetchHelper, HttpMethod } from "@twin.org/web";
@@ -173,7 +173,7 @@ export class Iota {
 	 * Prepare and post a transaction.
 	 * @param config The configuration.
 	 * @param vaultConnector The vault connector.
-	 * @param loggingConnector The logging connector.
+	 * @param logging The logging component.
 	 * @param identity The identity of the user to access the vault keys.
 	 * @param client The client instance.
 	 * @param source The source address.
@@ -185,7 +185,7 @@ export class Iota {
 	public static async prepareAndPostValueTransaction(
 		config: IIotaConfig,
 		vaultConnector: IVaultConnector,
-		loggingConnector: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		identity: string,
 		client: IotaClient,
 		source: string,
@@ -213,7 +213,7 @@ export class Iota {
 			const result = await this.prepareAndPostTransaction(
 				config,
 				vaultConnector,
-				loggingConnector,
+				logging,
 				identity,
 				client,
 				source,
@@ -235,7 +235,7 @@ export class Iota {
 	 * Prepare and post a transaction.
 	 * @param config The configuration.
 	 * @param vaultConnector The vault connector.
-	 * @param loggingConnector The logging connector.
+	 * @param logging The logging component.
 	 * @param identity The identity of the user to access the vault keys.
 	 * @param client The client instance.
 	 * @param owner The owner of the address.
@@ -246,7 +246,7 @@ export class Iota {
 	public static async prepareAndPostTransaction(
 		config: IIotaConfig,
 		vaultConnector: IVaultConnector,
-		loggingConnector: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		identity: string,
 		client: IotaClient,
 		owner: string,
@@ -269,13 +269,7 @@ export class Iota {
 		// Traditional transaction flow
 		// Dry run the transaction if cost logging is enabled to get the gas and storage costs
 		if (Is.stringValue(options?.dryRunLabel)) {
-			await Iota.dryRunTransaction(
-				client,
-				loggingConnector,
-				transaction,
-				owner,
-				options.dryRunLabel
-			);
+			await Iota.dryRunTransaction(client, logging, transaction, owner, options.dryRunLabel);
 		}
 
 		const seed = await this.getSeed(config, vaultConnector, identity);
@@ -472,7 +466,7 @@ export class Iota {
 	/**
 	 * Dry run a transaction and log the results.
 	 * @param client The IOTA client.
-	 * @param logging The logging connector.
+	 * @param logging The logging component.
 	 * @param txb The transaction to dry run.
 	 * @param sender The sender address.
 	 * @param operation The operation to log.
@@ -480,7 +474,7 @@ export class Iota {
 	 */
 	public static async dryRunTransaction(
 		client: IotaClient,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		txb: Transaction,
 		sender: string,
 		operation: string
