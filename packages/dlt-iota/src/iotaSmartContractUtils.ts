@@ -3,7 +3,7 @@
 import type { IotaClient } from "@iota/iota-sdk/client";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { GeneralError } from "@twin.org/core";
-import type { ILoggingConnector } from "@twin.org/logging-models";
+import type { ILoggingComponent } from "@twin.org/logging-models";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import { Iota } from "./iota";
 import type { IIotaConfig } from "./models/IIotaConfig";
@@ -24,7 +24,7 @@ export class IotaSmartContractUtils {
 	 * @param config The IOTA configuration.
 	 * @param client The IOTA client instance.
 	 * @param vaultConnector The vault connector for key management.
-	 * @param logging Optional logging connector.
+	 * @param logging Optional logging component.
 	 * @param gasBudget The gas budget for the transaction.
 	 * @param identity The identity of the controller with admin privileges.
 	 * @param objectId The ID of the object to migrate.
@@ -39,7 +39,7 @@ export class IotaSmartContractUtils {
 		config: IIotaConfig,
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		objectId: string,
@@ -105,7 +105,7 @@ export class IotaSmartContractUtils {
 	 * @param config The IOTA configuration.
 	 * @param client The IOTA client instance.
 	 * @param vaultConnector The vault connector for key management.
-	 * @param logging Optional logging connector.
+	 * @param logging Optional logging component.
 	 * @param gasBudget The gas budget for the transaction.
 	 * @param identity The identity of the controller with admin privileges.
 	 * @param getModuleName Function to get the module name for the contract.
@@ -119,7 +119,7 @@ export class IotaSmartContractUtils {
 		config: IIotaConfig,
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		getModuleName: () => string,
@@ -180,7 +180,7 @@ export class IotaSmartContractUtils {
 	 * @param config The IOTA configuration.
 	 * @param client The IOTA client instance.
 	 * @param vaultConnector The vault connector for key management.
-	 * @param logging Optional logging connector.
+	 * @param logging Optional logging component.
 	 * @param gasBudget The gas budget for the transaction.
 	 * @param identity The identity of the controller with admin privileges.
 	 * @param getModuleName Function to get the module name for the contract.
@@ -194,7 +194,7 @@ export class IotaSmartContractUtils {
 		config: IIotaConfig,
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		getModuleName: () => string,

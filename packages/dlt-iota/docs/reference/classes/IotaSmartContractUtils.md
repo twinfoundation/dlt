@@ -52,9 +52,9 @@ The vault connector for key management.
 
 ##### logging
 
-Optional logging connector.
+Optional logging component.
 
-`undefined` | `ILoggingConnector`
+`undefined` | `ILoggingComponent`
 
 ##### gasBudget
 
@@ -140,9 +140,9 @@ The vault connector for key management.
 
 ##### logging
 
-Optional logging connector.
+Optional logging component.
 
-`undefined` | `ILoggingConnector`
+`undefined` | `ILoggingComponent`
 
 ##### gasBudget
 
@@ -222,9 +222,9 @@ The vault connector for key management.
 
 ##### logging
 
-Optional logging connector.
+Optional logging component.
 
-`undefined` | `ILoggingConnector`
+`undefined` | `ILoggingComponent`
 
 ##### gasBudget
 
