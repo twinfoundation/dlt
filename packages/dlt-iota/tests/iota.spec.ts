@@ -125,8 +125,7 @@ describe("Iota", () => {
 					property: "coinType",
 					value: Number.NaN,
 					options: undefined
-				},
-				inner: undefined
+				}
 			})
 		);
 	});
@@ -144,8 +143,7 @@ describe("Iota", () => {
 					property: "accountIndex",
 					value: Number.NaN,
 					options: undefined
-				},
-				inner: undefined
+				}
 			})
 		);
 	});
@@ -163,8 +161,7 @@ describe("Iota", () => {
 					property: "addressIndex",
 					value: Number.NaN,
 					options: undefined
-				},
-				inner: undefined
+				}
 			})
 		);
 	});

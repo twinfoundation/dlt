@@ -156,7 +156,10 @@
 				"balanceStatus": "Balance Status",
 				"faucetFundsRequested": "Faucet funds requested",
 				"faucetRequestFailed": "Faucet request failed for {network}: {error}",
-				"insufficientBalanceAfterFaucet": "Insufficient balance after faucet request on {network}: {balance} IOTA < {required} IOTA for wallet {walletAddress}. Attempting deployment anyway."
+				"insufficientBalanceAfterFaucet": "Insufficient balance after faucet request on {network}: {balance} IOTA < {required} IOTA for wallet {walletAddress}. Attempting deployment anyway.",
+				"updatedWalletBalance": "Updated wallet balance",
+				"balanceCheck": "Balance check",
+				"sufficientFundsAvailable": "✅ Sufficient funds available, skipping faucet request"
 			},
 			"progress": {
 				"loadingContracts": "Loading compiled contracts...",
@@ -165,7 +168,8 @@
 				"importingDeployerAddress": "Importing deployer address to IOTA CLI...",
 				"deployingContract": "Deploying contract: {contractName} ({network})",
 				"updatingContractsFile": "Updating contracts file...",
-				"requestingFaucetFunds": "Requesting funds from {network} faucet..."
+				"requestingFaucetFunds": "Requesting funds from {network} faucet...",
+				"requestingAdditionalFaucetFunds": "Requesting additional funds from faucet..."
 			},
 			"messages": {},
 			"section": {

@@ -7,7 +7,7 @@ import { IotaClient } from "@iota/iota-sdk/client";
 import { requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { GeneralError, Is, Converter, I18n, Coerce, Guards } from "@twin.org/core";
-import { Bip39 } from "@twin.org/crypto";
+import { Bip39, Bip44 } from "@twin.org/crypto";
 import { Iota } from "@twin.org/dlt-iota";
 import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
@@ -86,16 +86,20 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 		}
 
 		// Derive the target address from existing mnemonic/seed
-		const addressIndex = Coerce.number(process.env.ADDRESS_INDEX) || 0;
+		const addressIndex = Coerce.number(process.env.ADDRESS_INDEX) ?? 0;
 		const targetAddress = await getDeploymentWalletAddress(network, addressIndex);
 
 		// Check if address exists in IOTA CLI
 		const { stdout: addressListOutput } = await execAsync("iota client addresses --json");
 		const addressInfo = JSON.parse(addressListOutput);
-		const addressExists = addressInfo.addresses.some(
+		const addressExists: boolean = addressInfo.addresses.some(
 			([_, addr]: [string, string]) => addr === targetAddress
 		);
-
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.checkingAddress"),
+			targetAddress,
+			1
+		);
 		if (!addressExists) {
 			// Import the address using the mnemonic
 			CLIDisplay.task(I18n.formatMessage("commands.deploy.progress.importingDeployerAddress"));
@@ -103,8 +107,10 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 			const mnemonic = await getDeploymentMnemonic(network);
 			const aliasName = `deployer-${network}`;
 
+			const derivationPath = Bip44.path(Iota.DEFAULT_COIN_TYPE, 0, false, addressIndex).toString();
+
 			await execAsync(
-				`iota client new-address --recovery-phrase "${mnemonic}" --derivation-path "m/44'/4218'/0'/0'/${addressIndex}'" --alias "${aliasName}"`
+				`iota keytool import "${mnemonic}" ed25519 "${derivationPath}" --alias "${aliasName}"`
 			);
 
 			CLIDisplay.value(
@@ -194,7 +200,7 @@ export async function actionCommandDeploy(opts: {
 
 		const contractsData = await loadCompiledContracts(contractsPath);
 
-		if (network === "mainnet") {
+		if (network === NetworkTypes.Mainnet) {
 			await validateDeploymentEnvironment(network);
 		}
 
@@ -340,9 +346,9 @@ async function validateEnvironmentForNetwork(
 		CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.walletAddress"), walletAddress, 1);
 	}
 
-	if (network === "mainnet") {
+	if (network === NetworkTypes.Mainnet) {
 		await validateDeploymentEnvironment(network);
-	} else if ((network === "testnet" || network === "devnet") && !isDryRun) {
+	} else if ((network === NetworkTypes.Testnet || network === NetworkTypes.Devnet) && !isDryRun) {
 		// For testnet/devnet, check balance first and only request funds if needed
 		await checkBalanceAndRequestFaucetIfNeeded(network, config, walletAddress);
 	}
@@ -393,7 +399,7 @@ async function checkWalletBalance(
 				}),
 				2
 			);
-		} else if (network === "mainnet") {
+		} else if (network === NetworkTypes.Mainnet) {
 			throw new GeneralError("commands", "commands.deploy.insufficientBalance", {
 				balance: balanceInIota,
 				required: requiredInIota,
@@ -593,7 +599,7 @@ function nanosToIota(nanos: number): number {
  * @returns Promise that resolves when funding is complete.
  */
 async function requestFaucetFunds(network: NetworkTypes, walletAddress: string): Promise<void> {
-	if (network !== "testnet" && network !== "devnet") {
+	if (network !== NetworkTypes.Testnet && network !== NetworkTypes.Devnet) {
 		return;
 	}
 	CLIDisplay.task(
@@ -643,7 +649,7 @@ async function checkBalanceAndRequestFaucetIfNeeded(
 	config: INetworkConfig,
 	walletAddress: string
 ): Promise<void> {
-	if (network !== "testnet" && network !== "devnet") {
+	if (network !== NetworkTypes.Testnet && network !== NetworkTypes.Devnet) {
 		return;
 	}
 
@@ -678,16 +684,24 @@ async function checkBalanceAndRequestFaucetIfNeeded(
 			1
 		);
 
-		CLIDisplay.task("Requesting additional funds from faucet...");
+		CLIDisplay.task(I18n.formatMessage("commands.deploy.progress.requestingAdditionalFaucetFunds"));
 		await requestFaucetFunds(network, walletAddress);
 
 		// Check balance again after faucet request
 		const updatedBalanceResponse = await client.getBalance({ owner: walletAddress });
 		const updatedBalanceInNanos = Number(updatedBalanceResponse.totalBalance);
 		const updatedBalanceInIota = nanosToIota(updatedBalanceInNanos);
-		CLIDisplay.value("Updated wallet balance", `${updatedBalanceInIota.toFixed(2)} IOTA`, 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.updatedWalletBalance"),
+			`${updatedBalanceInIota.toFixed(2)} IOTA`,
+			1
+		);
 	} else {
-		CLIDisplay.value("Balance check", "✅ Sufficient funds available, skipping faucet request", 1);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.balanceCheck"),
+			I18n.formatMessage("commands.deploy.labels.sufficientFundsAvailable"),
+			1
+		);
 	}
 }
 
@@ -709,8 +723,12 @@ async function deployWithIotaCli(
 		});
 	}
 
+	// Prioritize Move.toml in current directory, then use first found
+	const currentDirMoveToml = path.join(process.cwd(), "Move.toml");
+	const selectedMoveToml = moveTomlPaths.find(p => p === currentDirMoveToml) ?? moveTomlPaths[0];
+
 	// Use the actual Move project directory
-	const moveProjectRoot = path.dirname(moveTomlPaths[0]);
+	const moveProjectRoot = path.dirname(selectedMoveToml);
 
 	CLIDisplay.value(
 		I18n.formatMessage("commands.deploy.labels.moveProjectRoot"),
