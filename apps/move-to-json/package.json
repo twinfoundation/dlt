@@ -1,6 +1,6 @@
 {
 	"name": "@twin.org/move-to-json",
-	"version": "0.0.2-next.2",
+	"version": "0.0.2-next.3",
 	"description": "Tool to convert Move source files to JSON",
 	"repository": {
 		"type": "git",
@@ -35,7 +35,7 @@
 		"@twin.org/cli-core": "next",
 		"@twin.org/core": "next",
 		"@twin.org/crypto": "next",
-		"@twin.org/dlt-iota": "0.0.2-next.2",
+		"@twin.org/dlt-iota": "0.0.2-next.3",
 		"@twin.org/nameof": "next",
 		"@twin.org/wallet-connector-iota": "next",
 		"commander": "14.0.0",
