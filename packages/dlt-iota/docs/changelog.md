@@ -1,5 +1,12 @@
 # @twin.org/dlt-iota - Changelog
 
+## [0.0.2-next.3](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.2-next.2...dlt-iota-v0.0.2-next.3) (2025-08-20)
+
+
+### Features
+
+* update framework core ([79fc4b9](https://github.com/twinfoundation/dlt/commit/79fc4b961bd755437cad98d733ca9e25476bc03f))
+
 ## [0.0.2-next.2](https://github.com/twinfoundation/dlt/compare/dlt-iota-v0.0.2-next.1...dlt-iota-v0.0.2-next.2) (2025-07-25)
 
 
