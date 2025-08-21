@@ -17,7 +17,7 @@ This class uses composition pattern to provide shared functionality without inhe
 
 ### CLASS\_NAME
 
-> `readonly` `static` **CLASS\_NAME**: `string` = `"IotaSmartContractUtils"`
+> `readonly` `static` **CLASS\_NAME**: `string`
 
 Runtime name for the class.
 
@@ -25,7 +25,7 @@ Runtime name for the class.
 
 ### migrateSmartContract()
 
-> `static` **migrateSmartContract**(`config`, `client`, `vaultConnector`, `logging`, `gasBudget`, `identity`, `objectId`, `getModuleName`, `getPackageId`, `getAdminCapId`, `getMigrationStateId`, `getPackageControllerAddress`): `Promise`\<`void`\>
+> `static` **migrateSmartContract**(`config`, `client`, `vaultConnector`, `walletConnector`, `logging`, `gasBudget`, `identity`, `objectId`, `namespace`, `packageId`, `deploymentConfig`, `walletAddressIndex?`): `Promise`\<`void`\>
 
 Migrate a smart contract object to the current version using admin privileges.
 This is a generic migration method that works with any IOTA smart contract.
@@ -50,11 +50,17 @@ The IOTA client instance.
 
 The vault connector for key management.
 
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
 ##### logging
 
 Optional logging component.
 
-`undefined` | `ILoggingComponent`
+`undefined` | `ILoggingConnector`
 
 ##### gasBudget
 
@@ -74,35 +80,29 @@ The identity of the controller with admin privileges.
 
 The ID of the object to migrate.
 
-##### getModuleName
+##### namespace
 
-() => `string`
+`string`
 
-Function to get the module name for the contract.
+The contract namespace (e.g., "nft", "verifiable_storage").
 
-##### getPackageId
+##### packageId
 
-() => `string`
+`string`
 
-Function to get the package ID for the contract.
+The deployed package ID for the contract.
 
-##### getAdminCapId
+##### deploymentConfig
 
-(`identity`) => `Promise`\<`string`\>
+`ISmartContractDeployments`
 
-Function to get the AdminCap object ID.
+The deployment configuration containing object IDs.
 
-##### getMigrationStateId
+##### walletAddressIndex?
 
-(`identity`) => `Promise`\<`string`\>
+`number`
 
-Function to get the MigrationState object ID.
-
-##### getPackageControllerAddress
-
-(`identity`) => `Promise`\<`string`\>
-
-Function to get the package controller address.
+Optional wallet address index for the controller.
 
 #### Returns
 
@@ -114,7 +114,7 @@ Promise that resolves when migration is complete.
 
 ### enableMigration()
 
-> `static` **enableMigration**(`config`, `client`, `vaultConnector`, `logging`, `gasBudget`, `identity`, `getModuleName`, `getPackageId`, `getAdminCapId`, `getMigrationStateId`, `getPackageControllerAddress`): `Promise`\<`void`\>
+> `static` **enableMigration**(`config`, `client`, `vaultConnector`, `walletConnector`, `logging`, `gasBudget`, `identity`, `namespace`, `packageId`, `deploymentConfig`, `walletAddressIndex?`): `Promise`\<`void`\>
 
 Enable migration operations using admin privileges.
 
@@ -138,11 +138,17 @@ The IOTA client instance.
 
 The vault connector for key management.
 
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
 ##### logging
 
 Optional logging component.
 
-`undefined` | `ILoggingComponent`
+`undefined` | `ILoggingConnector`
 
 ##### gasBudget
 
@@ -156,35 +162,29 @@ The gas budget for the transaction.
 
 The identity of the controller with admin privileges.
 
-##### getModuleName
+##### namespace
 
-() => `string`
+`string`
 
-Function to get the module name for the contract.
+The contract namespace (e.g., "nft", "verifiable_storage").
 
-##### getPackageId
+##### packageId
 
-() => `string`
+`string`
 
-Function to get the package ID for the contract.
+The deployed package ID for the contract.
 
-##### getAdminCapId
+##### deploymentConfig
 
-(`identity`) => `Promise`\<`string`\>
+`ISmartContractDeployments`
 
-Function to get the AdminCap object ID.
+The deployment configuration containing object IDs.
 
-##### getMigrationStateId
+##### walletAddressIndex?
 
-(`identity`) => `Promise`\<`string`\>
+`number`
 
-Function to get the MigrationState object ID.
-
-##### getPackageControllerAddress
-
-(`identity`) => `Promise`\<`string`\>
-
-Function to get the package controller address.
+Optional wallet address index for the controller.
 
 #### Returns
 
@@ -196,7 +196,7 @@ Promise that resolves when migration is enabled.
 
 ### disableMigration()
 
-> `static` **disableMigration**(`config`, `client`, `vaultConnector`, `logging`, `gasBudget`, `identity`, `getModuleName`, `getPackageId`, `getAdminCapId`, `getMigrationStateId`, `getPackageControllerAddress`): `Promise`\<`void`\>
+> `static` **disableMigration**(`config`, `client`, `vaultConnector`, `walletConnector`, `logging`, `gasBudget`, `identity`, `namespace`, `packageId`, `deploymentConfig`, `walletAddressIndex?`): `Promise`\<`void`\>
 
 Disable migration operations using admin privileges.
 
@@ -220,11 +220,17 @@ The IOTA client instance.
 
 The vault connector for key management.
 
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
 ##### logging
 
 Optional logging component.
 
-`undefined` | `ILoggingComponent`
+`undefined` | `ILoggingConnector`
 
 ##### gasBudget
 
@@ -238,38 +244,230 @@ The gas budget for the transaction.
 
 The identity of the controller with admin privileges.
 
-##### getModuleName
+##### namespace
 
-() => `string`
+`string`
 
-Function to get the module name for the contract.
+The contract namespace (e.g., "nft", "verifiable_storage").
 
-##### getPackageId
+##### packageId
 
-() => `string`
+`string`
 
-Function to get the package ID for the contract.
+The deployed package ID for the contract.
 
-##### getAdminCapId
+##### deploymentConfig
 
-(`identity`) => `Promise`\<`string`\>
+`ISmartContractDeployments`
 
-Function to get the AdminCap object ID.
+The deployment configuration containing object IDs.
 
-##### getMigrationStateId
+##### walletAddressIndex?
 
-(`identity`) => `Promise`\<`string`\>
+`number`
 
-Function to get the MigrationState object ID.
-
-##### getPackageControllerAddress
-
-(`identity`) => `Promise`\<`string`\>
-
-Function to get the package controller address.
+Optional wallet address index for the controller.
 
 #### Returns
 
 `Promise`\<`void`\>
 
 Promise that resolves when migration is disabled.
+
+***
+
+### isMigrationActive()
+
+> `static` **isMigrationActive**(`config`, `client`, `namespace`, `packageId`, `deploymentConfig`, `identity`, `walletConnector`, `walletAddressIndex?`): `Promise`\<`boolean`\>
+
+Check if migration is currently active for a smart contract.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The IOTA configuration.
+
+##### client
+
+`IotaClient`
+
+The IOTA client instance.
+
+##### namespace
+
+`string`
+
+The contract namespace (e.g., "nft", "verifiable_storage").
+
+##### packageId
+
+`string`
+
+The deployed package ID for the contract.
+
+##### deploymentConfig
+
+`ISmartContractDeployments`
+
+The deployment configuration containing object IDs.
+
+##### identity
+
+`string`
+
+The identity for MigrationState discovery.
+
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
+##### walletAddressIndex?
+
+`number`
+
+Optional wallet address index.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+True if migration is enabled, false otherwise.
+
+***
+
+### getCurrentContractVersion()
+
+> `static` **getCurrentContractVersion**(`config`, `client`, `namespace`, `packageId`, `identity`, `walletConnector`, `walletAddressIndex?`): `Promise`\<`number`\>
+
+Get the current contract version from the deployed smart contract.
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The IOTA configuration.
+
+##### client
+
+`IotaClient`
+
+The IOTA client instance.
+
+##### namespace
+
+`string`
+
+The contract namespace (e.g., "nft", "verifiable_storage").
+
+##### packageId
+
+`string`
+
+The deployed package ID for the contract.
+
+##### identity
+
+`string`
+
+The identity for package controller address.
+
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
+##### walletAddressIndex?
+
+`number`
+
+Optional wallet address index.
+
+#### Returns
+
+`Promise`\<`number`\>
+
+The current version number of the contract.
+
+***
+
+### validateObjectVersion()
+
+> `static` **validateObjectVersion**\<`T`\>(`config`, `client`, `namespace`, `packageId`, `identity`, `objectId`, `walletConnector`, `versionExtractor`, `walletAddressIndex?`): `Promise`\<`boolean`\>
+
+Validate that an object version is compatible with the current contract.
+
+#### Type Parameters
+
+##### T
+
+`T`
+
+#### Parameters
+
+##### config
+
+[`IIotaConfig`](../interfaces/IIotaConfig.md)
+
+The IOTA configuration.
+
+##### client
+
+`IotaClient`
+
+The IOTA client instance.
+
+##### namespace
+
+`string`
+
+The contract namespace (e.g., "nft", "verifiable_storage").
+
+##### packageId
+
+`string`
+
+The deployed package ID for the contract.
+
+##### identity
+
+`string`
+
+The identity for version checking.
+
+##### objectId
+
+`string`
+
+The object ID to validate.
+
+##### walletConnector
+
+`IWalletConnector`
+
+The wallet connector for address generation.
+
+##### versionExtractor
+
+(`content`) => `number`
+
+Function to extract version from object content.
+
+##### walletAddressIndex?
+
+`number`
+
+Optional wallet address index.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+True if the object version is compatible, false otherwise.

@@ -159,7 +159,7 @@
 				"insufficientBalanceAfterFaucet": "Insufficient balance after faucet request on {network}: {balance} IOTA < {required} IOTA for wallet {walletAddress}. Attempting deployment anyway.",
 				"updatedWalletBalance": "Updated wallet balance",
 				"balanceCheck": "Balance check",
-				"sufficientFundsAvailable": "✅ Sufficient funds available, skipping faucet request"
+				"sufficientFundsAvailable": "Sufficient funds available, skipping faucet request"
 			},
 			"progress": {
 				"loadingContracts": "Loading compiled contracts...",
