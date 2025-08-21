@@ -5,12 +5,11 @@ import path from "node:path";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { Converter, GeneralError, StringHelper, I18n, Guards } from "@twin.org/core";
 import { Sha3 } from "@twin.org/crypto";
+import type { IContractData, ISmartContractDeployments } from "@twin.org/dlt-iota";
+import { NetworkTypes } from "@twin.org/dlt-iota";
 import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
 import FastGlob from "fast-glob";
-import type { IContractData } from "../models/IContractData";
-import type { ISmartContractDeployments } from "../models/ISmartContractDeployments";
-import { NetworkTypes } from "../models/networkTypes";
 import { verifyIotaSDK } from "../utils/iotaUtils.js";
 import { searchDirectoryForMoveToml } from "../utils/moveToJsonUtils.js";
 

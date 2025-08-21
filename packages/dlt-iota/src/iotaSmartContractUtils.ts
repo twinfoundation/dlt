@@ -5,12 +5,13 @@ import type { IotaClient } from "@iota/iota-sdk/client";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { GeneralError, Is, StringHelper } from "@twin.org/core";
 import type { ILoggingComponent, ILoggingConnector } from "@twin.org/logging-models";
-import type { ISmartContractDeployments, NetworkTypes } from "@twin.org/move-to-json";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import type { IWalletConnector } from "@twin.org/wallet-models";
 import { Iota } from "./iota";
 import type { IIotaConfig } from "./models/IIotaConfig";
+import type { ISmartContractDeployments } from "./models/ISmartContractDeployments";
+import type { NetworkTypes } from "./models/networkTypes";
 
 /**
  * Utility class providing common smart contract operations for IOTA-based contracts.

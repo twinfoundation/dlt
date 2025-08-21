@@ -94,7 +94,7 @@ The deployed package ID for the contract.
 
 ##### deploymentConfig
 
-`ISmartContractDeployments`
+[`ISmartContractDeployments`](../type-aliases/ISmartContractDeployments.md)
 
 The deployment configuration containing object IDs.
 
@@ -176,7 +176,7 @@ The deployed package ID for the contract.
 
 ##### deploymentConfig
 
-`ISmartContractDeployments`
+[`ISmartContractDeployments`](../type-aliases/ISmartContractDeployments.md)
 
 The deployment configuration containing object IDs.
 
@@ -258,7 +258,7 @@ The deployed package ID for the contract.
 
 ##### deploymentConfig
 
-`ISmartContractDeployments`
+[`ISmartContractDeployments`](../type-aliases/ISmartContractDeployments.md)
 
 The deployment configuration containing object IDs.
 
@@ -310,7 +310,7 @@ The deployed package ID for the contract.
 
 ##### deploymentConfig
 
-`ISmartContractDeployments`
+[`ISmartContractDeployments`](../type-aliases/ISmartContractDeployments.md)
 
 The deployment configuration containing object IDs.
 

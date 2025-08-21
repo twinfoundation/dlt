@@ -13,3 +13,6 @@ export * from "./models/IIotaResponseOptions";
 export * from "./models/ISmartContractObject";
 export * from "./models/IMigrationStateFields";
 export * from "./models/IAdminCapFields";
+export * from "./models/networkTypes";
+export * from "./models/IContractData";
+export * from "./models/ISmartContractDeployments";

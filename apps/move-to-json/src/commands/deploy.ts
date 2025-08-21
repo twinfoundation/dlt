@@ -8,13 +8,15 @@ import { requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { GeneralError, Is, Converter, I18n, Coerce, Guards } from "@twin.org/core";
 import { Bip39, Bip44 } from "@twin.org/crypto";
-import { Iota } from "@twin.org/dlt-iota";
+import {
+	Iota,
+	type IContractData,
+	type ISmartContractDeployments,
+	NetworkTypes
+} from "@twin.org/dlt-iota";
 import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
-import type { IContractData } from "../models/IContractData";
 import type { INetworkConfig } from "../models/INetworkConfig";
-import type { ISmartContractDeployments } from "../models/ISmartContractDeployments";
-import { NetworkTypes } from "../models/networkTypes";
 import {
 	validateDeploymentEnvironment,
 	getDeploymentMnemonic,
