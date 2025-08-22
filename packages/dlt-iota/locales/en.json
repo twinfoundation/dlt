@@ -10,6 +10,23 @@
 			"gasStationTransactionFailed": "The gas station transaction failed",
 			"gasReservationFailed": "The gas reservation failed",
 			"gasStationExecutionFailed": "The gas station execution failed"
+		},
+		"iotaSmartContractUtils": {
+			"migrationFailed": "Smart contract migration failed",
+			"migrateSmartContractFailed": "Failed to migrate smart contract for object \"{objectId}\"",
+			"enableMigrationFailed": "Failed to enable migration for smart contract",
+			"disableMigrationFailed": "Failed to disable migration for smart contract",
+			"migrationStateNotReadable": "Cannot read migration state for ID \"{migrationStateId}\"",
+			"isMigrationActiveFailed": "Failed to check if migration is active",
+			"invalidVersionData": "Invalid version data received from smart contract",
+			"getCurrentContractVersionNoData": "No version data returned from contract",
+			"getCurrentContractVersionFailed": "Failed to get current contract version",
+			"objectNotReadable": "Cannot read object with ID \"{objectId}\"",
+			"objectInvalidFormat": "Object \"{objectId}\" has invalid format",
+			"validateObjectVersionFailed": "Failed to validate object version for \"{objectId}\"",
+			"getContractObjectIdsFailed": "Failed to get contract object IDs for namespace \"{namespace}\" on network \"{network}\"",
+			"adminCapNotFound": "AdminCap object not found for type \"{adminCapType}\" and address \"{adminAddress}\"",
+			"migrationStateNotFound": "MigrationState object not found for type \"{migrationStateType}\" and address \"{adminAddress}\""
 		}
 	}
 }
