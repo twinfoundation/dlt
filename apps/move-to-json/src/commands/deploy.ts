@@ -7,14 +7,16 @@ import { IotaClient } from "@iota/iota-sdk/client";
 import { requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
 import { CLIDisplay, CLIUtils } from "@twin.org/cli-core";
 import { GeneralError, Is, Converter, I18n, Coerce, Guards } from "@twin.org/core";
-import { Bip39 } from "@twin.org/crypto";
-import { Iota } from "@twin.org/dlt-iota";
+import { Bip39, Bip44 } from "@twin.org/crypto";
+import {
+	Iota,
+	type IContractData,
+	type ISmartContractDeployments,
+	NetworkTypes
+} from "@twin.org/dlt-iota";
 import { nameof } from "@twin.org/nameof";
 import type { Command } from "commander";
-import type { IContractData } from "../models/IContractData";
 import type { INetworkConfig } from "../models/INetworkConfig";
-import type { ISmartContractDeployments } from "../models/ISmartContractDeployments";
-import { NetworkTypes } from "../models/networkTypes";
 import {
 	validateDeploymentEnvironment,
 	getDeploymentMnemonic,
@@ -54,7 +56,7 @@ export function buildCommandDeploy(program: Command): void {
 }
 
 /**
- * Switch IOTA CLI to the target network environment.
+ * Switch IOTA CLI to the target network environment and set the active address.
  * @param network Target network to switch to
  * @param dryRun Whether this is a dry run (checks environment but doesn't switch)
  */
@@ -85,12 +87,52 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 			return;
 		}
 
-		// Switch to target network environment
-		await execAsync(`iota client switch --env ${network}`);
+		// Derive the target address from existing mnemonic/seed
+		const addressIndex = Coerce.number(process.env.ADDRESS_INDEX) ?? 0;
+		const targetAddress = await getDeploymentWalletAddress(network, addressIndex);
+
+		// Check if address exists in IOTA CLI
+		const { stdout: addressListOutput } = await execAsync("iota client addresses --json");
+		const addressInfo = JSON.parse(addressListOutput);
+		const addressExists: boolean = addressInfo.addresses.some(
+			([_, addr]: [string, string]) => addr === targetAddress
+		);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.checkingAddress"),
+			targetAddress,
+			1
+		);
+		if (!addressExists) {
+			// Import the address using the mnemonic
+			CLIDisplay.task(I18n.formatMessage("commands.deploy.progress.importingDeployerAddress"));
+
+			const mnemonic = await getDeploymentMnemonic(network);
+			const aliasName = `deployer-${network}`;
+
+			const derivationPath = Bip44.path(Iota.DEFAULT_COIN_TYPE, 0, false, addressIndex).toString();
+
+			await execAsync(
+				`iota keytool import "${mnemonic}" ed25519 "${derivationPath}" --alias "${aliasName}"`
+			);
+
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.importedDeployerAddress"),
+				`${aliasName} (${targetAddress})`,
+				1
+			);
+		}
+
+		// Switch both environment and address in one command
+		await execAsync(`iota client switch --env ${network} --address ${targetAddress}`);
 
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.switchedIotaEnvironment"),
 			network,
+			1
+		);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.switchedActiveAddress"),
+			targetAddress,
 			1
 		);
 
@@ -100,6 +142,17 @@ async function setIotaEnvironment(network: NetworkTypes, dryRun: boolean = false
 			throw new GeneralError("commands", "commands.deploy.environmentSwitchFailed", {
 				network,
 				activeEnv
+			});
+		}
+
+		// Verify address switch was successful
+		const { stdout: activeAddressOutput } = await execAsync("iota client active-address");
+		const activeAddress = activeAddressOutput.trim();
+		if (activeAddress !== targetAddress) {
+			throw new GeneralError("commands", "commands.deploy.addressSwitchFailed", {
+				network,
+				targetAddress,
+				activeAddress
 			});
 		}
 	} catch (error) {
@@ -149,7 +202,7 @@ export async function actionCommandDeploy(opts: {
 
 		const contractsData = await loadCompiledContracts(contractsPath);
 
-		if (network === "mainnet") {
+		if (network === NetworkTypes.Mainnet) {
 			await validateDeploymentEnvironment(network);
 		}
 
@@ -295,11 +348,11 @@ async function validateEnvironmentForNetwork(
 		CLIDisplay.value(I18n.formatMessage("commands.deploy.labels.walletAddress"), walletAddress, 1);
 	}
 
-	if (network === "mainnet") {
+	if (network === NetworkTypes.Mainnet) {
 		await validateDeploymentEnvironment(network);
-	} else if ((network === "testnet" || network === "devnet") && !isDryRun) {
-		// For testnet/devnet, request funds from faucet
-		await requestFaucetFunds(network, walletAddress);
+	} else if ((network === NetworkTypes.Testnet || network === NetworkTypes.Devnet) && !isDryRun) {
+		// For testnet/devnet, check balance first and only request funds if needed
+		await checkBalanceAndRequestFaucetIfNeeded(network, config, walletAddress);
 	}
 
 	return walletAddress;
@@ -320,9 +373,12 @@ async function checkWalletBalance(
 	isDryRun: boolean = false
 ): Promise<number> {
 	const client = new IotaClient({ url: config.rpc.url });
-	const balanceIota = await client.getBalance({ owner: walletAddress });
-	const balanceNumberIota = Number(balanceIota.totalBalance);
-	const requiredIota = nanosToIota(config.deployment.gasBudget);
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
+	const requiredInNanos = config.deployment.gasBudget;
+
+	const balanceInIota = nanosToIota(balanceInNanos);
+	const requiredInIota = nanosToIota(requiredInNanos);
 
 	const balanceLabel = isDryRun
 		? "commands.deploy.labels.dryRunWalletBalance"
@@ -331,24 +387,24 @@ async function checkWalletBalance(
 		? "commands.deploy.labels.dryRunGasBudget"
 		: "commands.deploy.labels.gasBudget";
 
-	CLIDisplay.value(I18n.formatMessage(balanceLabel), `${balanceNumberIota.toFixed(2)} IOTA`, 1);
-	CLIDisplay.value(I18n.formatMessage(gasBudgetLabel), `${requiredIota.toFixed(2)} IOTA`, 1);
+	CLIDisplay.value(I18n.formatMessage(balanceLabel), `${balanceInIota.toFixed(2)} IOTA`, 1);
+	CLIDisplay.value(I18n.formatMessage(gasBudgetLabel), `${requiredInIota.toFixed(2)} IOTA`, 1);
 
-	// Handle insufficient balance based on network and run type
-	if (balanceNumberIota < requiredIota) {
+	// Handle insufficient balance based on network and run type (compare in same units - nanos)
+	if (balanceInNanos < requiredInNanos) {
 		if (isDryRun) {
 			CLIDisplay.value(
 				I18n.formatMessage("commands.deploy.labels.warning"),
 				I18n.formatMessage("commands.deploy.labels.insufficientBalanceWarning", {
-					currentBalance: balanceNumberIota.toFixed(2),
-					requiredBalance: requiredIota.toFixed(2)
+					currentBalance: balanceInIota.toFixed(2),
+					requiredBalance: requiredInIota.toFixed(2)
 				}),
 				2
 			);
-		} else if (network === "mainnet") {
+		} else if (network === NetworkTypes.Mainnet) {
 			throw new GeneralError("commands", "commands.deploy.insufficientBalance", {
-				balance: balanceNumberIota,
-				required: requiredIota,
+				balance: balanceInIota,
+				required: requiredInIota,
 				walletAddress
 			});
 		} else {
@@ -357,8 +413,8 @@ async function checkWalletBalance(
 				I18n.formatMessage("commands.deploy.labels.warning"),
 				I18n.formatMessage("commands.deploy.labels.insufficientBalanceAfterFaucet", {
 					network,
-					balance: balanceNumberIota.toFixed(2),
-					required: requiredIota.toFixed(2),
+					balance: balanceInIota.toFixed(2),
+					required: requiredInIota.toFixed(2),
 					walletAddress
 				}),
 				2
@@ -366,7 +422,7 @@ async function checkWalletBalance(
 		}
 	}
 
-	return balanceNumberIota;
+	return balanceInNanos;
 }
 
 /**
@@ -428,7 +484,11 @@ async function handleActualDeployment(
 		const deploymentResult = await deployWithIotaCli(config.deployment.gasBudget);
 
 		contractData.deployedPackageId = deploymentResult.packageId;
-		contractData.upgradeCap = deploymentResult.upgradeCap;
+		contractData.upgradeCapabilityId = deploymentResult.upgradeCap;
+
+		if (deploymentResult.migrationStateId) {
+			contractData.migrationStateId = deploymentResult.migrationStateId;
+		}
 
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.deployedPackageIdResult"),
@@ -437,8 +497,15 @@ async function handleActualDeployment(
 		);
 		if (deploymentResult.upgradeCap) {
 			CLIDisplay.value(
-				I18n.formatMessage("commands.deploy.labels.upgradeCapId"),
+				I18n.formatMessage("commands.deploy.labels.upgradeCapabilityIdResult"),
 				deploymentResult.upgradeCap,
+				1
+			);
+		}
+		if (contractData.migrationStateId) {
+			CLIDisplay.value(
+				I18n.formatMessage("commands.deploy.labels.migrationStateIdResult"),
+				contractData.migrationStateId,
 				1
 			);
 		}
@@ -457,7 +524,7 @@ async function handleActualDeployment(
  * @param contractName Name of the contract
  * @param contractData Contract compilation data
  * @param contractData.packageId Package ID
- * @param contractData.package Package
+ * @param contractData.packageBytecode Package bytecode
  * @param contractData.deployedPackageId Deployed package ID
  * @param config Network configuration
  * @param network Target network
@@ -534,7 +601,7 @@ function nanosToIota(nanos: number): number {
  * @returns Promise that resolves when funding is complete.
  */
 async function requestFaucetFunds(network: NetworkTypes, walletAddress: string): Promise<void> {
-	if (network !== "testnet" && network !== "devnet") {
+	if (network !== NetworkTypes.Testnet && network !== NetworkTypes.Devnet) {
 		return;
 	}
 	CLIDisplay.task(
@@ -553,14 +620,14 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 	}
 
 	const client = new IotaClient({ url: process.env.RPC_URL ?? "" });
-	const balanceIota = await client.getBalance({ owner: walletAddress });
-	const balanceNumberIota = Number(balanceIota.totalBalance);
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
 
-	if (balanceNumberIota > 0n) {
-		const amountIota = nanosToIota(Number(balanceNumberIota));
+	if (balanceInNanos > 0) {
+		const amountInIota = nanosToIota(balanceInNanos);
 		CLIDisplay.value(
 			I18n.formatMessage("commands.deploy.labels.faucetFundsRequested"),
-			`${amountIota.toFixed(2)} IOTA`,
+			`${amountInIota.toFixed(2)} IOTA`,
 			1
 		);
 	} else {
@@ -573,13 +640,81 @@ async function requestFaucetFunds(network: NetworkTypes, walletAddress: string):
 }
 
 /**
+ * Check wallet balance and request faucet funds only if needed.
+ * @param network The target network (testnet or devnet).
+ * @param config Network configuration.
+ * @param walletAddress The wallet address to check and potentially fund.
+ * @returns Promise that resolves when balance check and optional funding is complete.
+ */
+async function checkBalanceAndRequestFaucetIfNeeded(
+	network: NetworkTypes,
+	config: INetworkConfig,
+	walletAddress: string
+): Promise<void> {
+	if (network !== NetworkTypes.Testnet && network !== NetworkTypes.Devnet) {
+		return;
+	}
+
+	// Check current balance
+	const client = new IotaClient({ url: config.rpc.url });
+	const balanceResponse = await client.getBalance({ owner: walletAddress });
+	const balanceInNanos = Number(balanceResponse.totalBalance);
+	const requiredInNanos = config.deployment.gasBudget;
+	// Convert to IOTA for display purposes
+	const balanceInIota = nanosToIota(balanceInNanos);
+	const requiredInIota = nanosToIota(requiredInNanos);
+
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.walletBalance"),
+		`${balanceInIota.toFixed(2)} IOTA`,
+		1
+	);
+	CLIDisplay.value(
+		I18n.formatMessage("commands.deploy.labels.gasBudget"),
+		`${requiredInIota.toFixed(2)} IOTA`,
+		1
+	);
+
+	// Only request faucet funds if balance is insufficient (compare in same units - nanos)
+	if (balanceInNanos < requiredInNanos) {
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.warning"),
+			I18n.formatMessage("commands.deploy.labels.insufficientBalance", {
+				currentBalance: balanceInIota.toFixed(2),
+				requiredBalance: requiredInIota.toFixed(2)
+			}),
+			1
+		);
+
+		CLIDisplay.task(I18n.formatMessage("commands.deploy.progress.requestingAdditionalFaucetFunds"));
+		await requestFaucetFunds(network, walletAddress);
+
+		// Check balance again after faucet request
+		const updatedBalanceResponse = await client.getBalance({ owner: walletAddress });
+		const updatedBalanceInNanos = Number(updatedBalanceResponse.totalBalance);
+		const updatedBalanceInIota = nanosToIota(updatedBalanceInNanos);
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.updatedWalletBalance"),
+			`${updatedBalanceInIota.toFixed(2)} IOTA`,
+			1
+		);
+	} else {
+		CLIDisplay.value(
+			I18n.formatMessage("commands.deploy.labels.balanceCheck"),
+			I18n.formatMessage("commands.deploy.labels.sufficientFundsAvailable"),
+			1
+		);
+	}
+}
+
+/**
  * Deploy contract using IOTA CLI.
  * @param gasBudget Gas budget for deployment.
- * @returns Deployment result with package ID.
+ * @returns Deployment result with package ID, upgrade cap, and migration state ID.
  */
 async function deployWithIotaCli(
 	gasBudget: number
-): Promise<{ packageId: string; upgradeCap?: string }> {
+): Promise<{ packageId: string; upgradeCap?: string; migrationStateId?: string }> {
 	// Find the Move project directory
 	const moveTomlPaths: string[] = [];
 	await searchDirectoryForMoveToml(process.cwd(), moveTomlPaths);
@@ -590,8 +725,12 @@ async function deployWithIotaCli(
 		});
 	}
 
+	// Prioritize Move.toml in current directory, then use first found
+	const currentDirMoveToml = path.join(process.cwd(), "Move.toml");
+	const selectedMoveToml = moveTomlPaths.find(p => p === currentDirMoveToml) ?? moveTomlPaths[0];
+
 	// Use the actual Move project directory
-	const moveProjectRoot = path.dirname(moveTomlPaths[0]);
+	const moveProjectRoot = path.dirname(selectedMoveToml);
 
 	CLIDisplay.value(
 		I18n.formatMessage("commands.deploy.labels.moveProjectRoot"),
@@ -628,9 +767,16 @@ async function deployWithIotaCli(
 			change.objectType === "0x2::package::UpgradeCap"
 	)?.objectId;
 
+	// Extract MigrationState ID from created objects
+	const migrationStateId = result.objectChanges?.find(
+		(change: { objectType?: string; objectId?: string }) =>
+			change.objectType?.endsWith("::MigrationState")
+	)?.objectId;
+
 	return {
 		packageId,
-		upgradeCap
+		upgradeCap,
+		migrationStateId
 	};
 }
 

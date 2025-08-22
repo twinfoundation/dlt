@@ -100,8 +100,6 @@ describe("move-to-json CLI", () => {
 			{ overrideOutputWidth: 1000 }
 		);
 
-		console.log(errorBuffer);
-
 		expect(exitCode).toBe(0);
 		const compiledFileExists = existsSync(TEST_OUTPUT_JSON);
 		expect(compiledFileExists).toBe(true);
@@ -114,7 +112,7 @@ describe("move-to-json CLI", () => {
 
 		// Check contract data in target network (testnet) - flat structure
 		expect(json.testnet.packageId).toMatch(/^0x/);
-		expect(json.testnet.package).toBeDefined();
+		expect(json.testnet.packageBytecode).toBeDefined();
 		expect(json.testnet.deployedPackageId).toBeUndefined();
 	});
 

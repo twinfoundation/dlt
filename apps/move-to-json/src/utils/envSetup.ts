@@ -1,7 +1,7 @@
 // Copyright 2024 IOTA Stiftung.
 // SPDX-License-Identifier: Apache-2.0.
 import { GeneralError, Is } from "@twin.org/core";
-import type { NetworkTypes } from "../models/networkTypes.js";
+import type { NetworkTypes } from "@twin.org/dlt-iota";
 
 /**
  * Validate that required environment variables are set for deployment.

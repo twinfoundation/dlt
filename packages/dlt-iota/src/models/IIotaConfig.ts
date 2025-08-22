@@ -58,4 +58,10 @@ export interface IIotaConfig {
 	 * @default 50000000
 	 */
 	gasBudget?: number;
+
+	/**
+	 * Enable cost logging for transactions.
+	 * @default false
+	 */
+	enableCostLogging?: boolean;
 }
