@@ -4,7 +4,7 @@ import { bcs } from "@iota/bcs";
 import type { IotaClient } from "@iota/iota-sdk/client";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { GeneralError, Is, StringHelper } from "@twin.org/core";
-import type { ILoggingComponent, ILoggingConnector } from "@twin.org/logging-models";
+import type { ILoggingComponent } from "@twin.org/logging-models";
 import { nameof } from "@twin.org/nameof";
 import type { IVaultConnector } from "@twin.org/vault-models";
 import type { IWalletConnector } from "@twin.org/wallet-models";
@@ -45,7 +45,7 @@ export class IotaSmartContractUtils {
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
 		walletConnector: IWalletConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		objectId: string,
@@ -131,7 +131,7 @@ export class IotaSmartContractUtils {
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
 		walletConnector: IWalletConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		namespace: string,
@@ -215,7 +215,7 @@ export class IotaSmartContractUtils {
 		client: IotaClient,
 		vaultConnector: IVaultConnector,
 		walletConnector: IWalletConnector,
-		logging: ILoggingConnector | undefined,
+		logging: ILoggingComponent | undefined,
 		gasBudget: number,
 		identity: string,
 		namespace: string,
