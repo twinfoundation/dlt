@@ -3,5 +3,8 @@ name = "nft"
 version = "0.0.2"
 edition = "2024.beta"
 
+[dependencies]
+Iota = { git = "https://github.com/iotaledger/iota.git", subdir = "crates/iota-framework/packages/iota-framework", rev = "mainnet" }
+
 [addresses]
 nft = "0x0"
